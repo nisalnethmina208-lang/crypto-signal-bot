@@ -12,41 +12,46 @@ TOP_COINS = [
     "PEPEUSDT", "FETUSDT", "INJUSDT", "FILUSDT", "OPUSDT", "ARBUSDT", "SHIBUSDT"
 ]
 
-# Fetch Multi-Source Live Signal (Bybit Primary + Binance Backup)
+# Fetch Data from Binance Vision API (No Cloud IP Block)
 @st.cache_data(ttl=5)
 def get_live_signal(symbol="BTCUSDT", interval="15m"):
-    interval_map = {"1m": "1", "5m": "5", "15m": "15", "1h": "60", "4h": "240"}
-    bybit_interval = interval_map.get(interval, "15")
+    headers = {
+        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36'
+    }
     
     df = None
+    error_msg = ""
     
-    # 1. Try Bybit API (No IP Block on Streamlit Cloud)
+    # 1. Primary Source: Binance Vision Official Public API
     try:
-        url = f"https://api.bybit.com/v5/market/kline?category=spot&symbol={symbol}&interval={bybit_interval}&limit=100"
-        res = requests.get(url, timeout=4).json()
-        if res.get("retCode") == 0 and res.get("result", {}).get("list"):
-            raw_candles = res["result"]["list"]
-            df = pd.DataFrame(raw_candles, columns=['time', 'open', 'high', 'low', 'close', 'volume', 'turnover'])
-            df['close'] = df['close'].astype(float)
-            df = df.iloc[::-1].reset_index(drop=True)
-    except Exception:
-        df = None
+        url = f"https://data-api.binance.vision/api/v3/klines?symbol={symbol}&interval={interval}&limit=100"
+        res = requests.get(url, headers=headers, timeout=5)
+        if res.status_code == 200:
+            raw_data = res.json()
+            if isinstance(raw_data, list) and len(raw_data) > 0:
+                df = pd.DataFrame(raw_data, columns=['time', 'open', 'high', 'low', 'close', 'volume', '_1', '_2', '_3', '_4', '_5', '_6'])
+                df['close'] = df['close'].astype(float)
+    except Exception as e:
+        error_msg = str(e)
 
-    # 2. Fallback to Binance Mirror API if Bybit fails
+    # 2. Secondary Source: Bybit Spot API
     if df is None or df.empty:
         try:
-            bin_url = f"https://api1.binance.com/api/v3/klines?symbol={symbol}&interval={interval}&limit=100"
-            res_bin = requests.get(bin_url, timeout=4).json()
-            if isinstance(res_bin, list) and len(res_bin) > 0:
-                df = pd.DataFrame(res_bin, columns=['time', 'open', 'high', 'low', 'close', 'volume', '_1', '_2', '_3', '_4', '_5', '_6'])
+            interval_map = {"1m": "1", "5m": "5", "15m": "15", "1h": "60", "4h": "240"}
+            bybit_tf = interval_map.get(interval, "15")
+            bybit_url = f"https://api.bybit.com/v5/market/kline?category=spot&symbol={symbol}&interval={bybit_tf}&limit=100"
+            res_bybit = requests.get(bybit_url, headers=headers, timeout=5).json()
+            if res_bybit.get("retCode") == 0 and res_bybit.get("result", {}).get("list"):
+                df = pd.DataFrame(res_bybit["result"]["list"], columns=['time', 'open', 'high', 'low', 'close', 'volume', 'turnover'])
                 df['close'] = df['close'].astype(float)
+                df = df.iloc[::-1].reset_index(drop=True)
         except Exception:
-            df = None
+            pass
 
     if df is None or df.empty:
-        return 0.0, "DATA ERROR ⚠️", "#848e9c", "-", "-", "Servers Busy - Try Changing Coin"
+        return 0.0, "සම්ප්‍රේෂණ දෝෂයකි ⚠️", "#848e9c", "-", "-", f"Data Error: {error_msg}"
 
-    # Technical Analysis (EMA & RSI)
+    # Technical Indicators (EMA 20/50 & RSI 14)
     df['ema20'] = df['close'].ewm(span=20, adjust=False).mean()
     df['ema50'] = df['close'].ewm(span=50, adjust=False).mean()
     
@@ -64,7 +69,7 @@ def get_live_signal(symbol="BTCUSDT", interval="15m"):
     ema_cross_up = (prev['ema20'] <= prev['ema50']) and (latest['ema20'] > latest['ema50'])
     ema_cross_down = (prev['ema20'] >= prev['ema50']) and (latest['ema20'] < latest['ema50'])
     
-    # Clearly defines Market UP or DOWN
+    # Calculate Signal & Targets
     if ema_cross_up or (bullish and latest['rsi'] < 60):
         signal = "BUY SIGNAL (මාකට් එක UP වේ) 🟢"
         color = "#0ecb81"
@@ -86,10 +91,9 @@ def get_live_signal(symbol="BTCUSDT", interval="15m"):
         
     return price, signal, color, tp, sl, reason
 
-# Header UI
+# Header
 st.markdown("<h2 style='text-align: center; color: #F0B90B;'>⚡ Crypto Live Signal Center</h2>", unsafe_allow_html=True)
 
-# Search Bar
 search_query = st.text_input("🔍 Coin එකක් Search කරන්න (උදා: TRX, BTC, SOL):", "").strip().upper()
 
 filtered_coins = [c for c in TOP_COINS if search_query in c] if search_query else TOP_COINS
@@ -104,7 +108,7 @@ with col2:
 
 price, signal, color, tp, sl, reason = get_live_signal(selected_symbol, timeframe)
 
-# Signal Result Box
+# Signal Display Box
 st.markdown(f"""
 <div style="background-color: #1e2329; border: 2px solid {color}; padding: 20px; border-radius: 12px; margin: 15px 0;">
     <div style="display: flex; justify-content: space-between; align-items: center;">
