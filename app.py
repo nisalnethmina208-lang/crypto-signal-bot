@@ -4,13 +4,29 @@ import requests
 import pandas as pd
 
 # Page Configuration
-st.set_page_config(page_title="Crypto Signal Center", layout="wide")
+st.set_page_config(page_title="Binance All-Coins Signal Center", layout="wide")
+
+# Fetch All Trading Pairs from Binance
+@st.cache_data(ttl=3600)
+def get_all_binance_usdt_symbols():
+    try:
+        url = "https://api.binance.com/api/v3/exchangeInfo"
+        res = requests.get(url, timeout=10).json()
+        symbols = [
+            s['symbol'] for s in res['symbols']
+            if s['symbol'].endswith('USDT') and s['status'] == 'TRADING'
+            and not s['symbol'].endswith('UPUSDT') and not s['symbol'].endswith('DOWNUSDT')
+        ]
+        symbols.sort()
+        return symbols
+    except Exception:
+        return ["BTCUSDT", "ETHUSDT", "SOLUSDT", "BNBUSDT", "XRPUSDT", "ADAUSDT", "DOGEUSDT"]
 
 # Translations (English, Sinhala, Tamil)
 TRANSLATIONS = {
     "English": {
-        "title": "⚡ Binance Crypto Signal Center",
-        "select_coin": "Select Crypto Pair",
+        "title": "⚡ Binance Crypto Signal Center (All Coins)",
+        "select_coin": "Search / Select Any Crypto Pair",
         "timeframe": "Select Timeframe",
         "price": "Current Price",
         "reason": "Signal Reason",
@@ -20,7 +36,7 @@ TRANSLATIONS = {
     },
     "සිංහල": {
         "title": "⚡ බයිනෑන්ස් ක්‍රිප්ටෝ සිග්නල් මධ්‍යස්ථානය",
-        "select_coin": "Coin එක තෝරන්න",
+        "select_coin": "Coin එක Search කරන්න / තෝරන්න",
         "timeframe": "කාලරාමුව තෝරන්න (Timeframe)",
         "price": "වත්මන් මිල",
         "reason": "සිග්නල් එකට හේතුව",
@@ -30,7 +46,7 @@ TRANSLATIONS = {
     },
     "தமிழ்": {
         "title": "⚡ Binance Crypto சிக்னல் மையம்",
-        "select_coin": "நாணயத்தைத் தேர்ந்தெடுக்கவும்",
+        "select_coin": "நாணயங்களைத் தேடவும் / தேர்ந்தெடுக்கவும்",
         "timeframe": "காலகட்டம்",
         "price": "தற்போதைய விலை",
         "reason": "சிக்னல் காரணம்",
@@ -102,10 +118,13 @@ def get_live_signal(symbol="BTCUSDT", interval="15m"):
 st.markdown(f"<h2 style='text-align: center; color: #F0B90B;'>{t['title']}</h2>", unsafe_allow_html=True)
 st.caption(f"<p style='text-align: center;'>{t['refresh_note']}</p>", unsafe_allow_html=True)
 
+# Load All USDT Coins Dynamic List
+all_coins = get_all_binance_usdt_symbols()
+default_index = all_coins.index("BTCUSDT") if "BTCUSDT" in all_coins else 0
+
 col1, col2 = st.columns(2)
 with col1:
-    coin_list = ["BTCUSDT", "ETHUSDT", "SOLUSDT", "XRPUSDT", "BNBUSDT", "ADAUSDT", "DOGEUSDT"]
-    selected_symbol = st.selectbox(t['select_coin'], coin_list, index=0)
+    selected_symbol = st.selectbox(t['select_coin'], all_coins, index=default_index)
 with col2:
     timeframe = st.selectbox(t['timeframe'], ["1m", "5m", "15m", "1h", "4h"], index=2)
 
