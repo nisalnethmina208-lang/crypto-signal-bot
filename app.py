@@ -5,41 +5,73 @@ import pandas as pd
 import urllib.parse
 
 # Page config
-st.set_page_config(
-    page_title="Binance Signal & WP Alert",
-    page_icon="⚡",
-    layout="wide",
-    initial_sidebar_state="collapsed"
-)
+st.set_page_config(page_title="Multi-Language Binance Signal App", layout="wide")
 
-# Custom Styling (Hide Streamlit Defaults)
-st.markdown("""
-    <style>
-    #MainMenu {visibility: hidden;}
-    header {visibility: hidden;}
-    footer {visibility: hidden;}
-    .block-container {
-        padding-top: 1rem;
-        padding-bottom: 2rem;
-        padding-left: 0.8rem;
-        padding-right: 0.8rem;
+# 1. TRANSLATION DICTIONARY (ඕනෑම භාෂාවක් මෙතැනට එකතු කළ හැක)
+TRANSLATIONS = {
+    "English": {
+        "title": "⚡ Binance Signal & WP Alert Center",
+        "select_coin": "Select Coin / Pair",
+        "timeframe": "Timeframe",
+        "price": "Price",
+        "reason": "Reason",
+        "tp": "Take Profit (TP)",
+        "sl": "Stop Loss (SL)",
+        "send_wp": "📲 Send Signal to WhatsApp",
+        "settings_title": "⚙️ WhatsApp Alert Settings",
+        "phone_label": "WhatsApp Number (with country code e.g., +94771234567)",
+        "api_label": "CallMeBot API Key",
+        "save_btn": "Save Settings",
+        "tab_main": "📊 Signals & Market",
+        "tab_settings": "⚙️ Settings"
+    },
+    "සිංහල": {
+        "title": "⚡ බයිනෑන්ස් සිග්නල් සහ WhatsApp ඇලර්ට් මධ්‍යස්ථානය",
+        "select_coin": "Coin එක තෝරන්න",
+        "timeframe": "කාලරාමුව (Timeframe)",
+        "price": "වත්මන් මිල",
+        "reason": "හේතුව",
+        "tp": "වාසි ලබාගැනීම (TP)",
+        "sl": "අලාභය පාලනය (SL)",
+        "send_wp": "📲 WhatsApp එකට Signal එක යවන්න",
+        "settings_title": "⚙️ WhatsApp ඇලර්ට් සැකසුම්",
+        "phone_label": "WhatsApp අංකය (රටේ කේතය සමඟ e.g., +94771234567)",
+        "api_label": "CallMeBot API කේතය",
+        "save_btn": "තොරතුරු සුරකින්න",
+        "tab_main": "📊 සිග්නල් සහ වෙළඳපොළ",
+        "tab_settings": "⚙️ සැකසුම්"
+    },
+    "தமிழ்": {
+        "title": "⚡ Binance சிக்னல் மற்றும் WP எச்சரிக்கை மையம்",
+        "select_coin": "நாணயத்தைத் தேர்ந்தெடுக்கவும்",
+        "timeframe": "காலகட்டம்",
+        "price": "தற்போதைய விலை",
+        "reason": "காரணம்",
+        "tp": "இலாபம் (TP)",
+        "sl": "நஷ்டத் தடுப்பு (SL)",
+        "send_wp": "📲 WhatsApp-க்கு சிக்னல் அனுப்பவும்",
+        "settings_title": "⚙️ WhatsApp அமைப்புகள்",
+        "phone_label": "WhatsApp எண் (+94771234567)",
+        "api_label": "CallMeBot API சாவி",
+        "save_btn": "சேமிக்கவும்",
+        "tab_main": "📊 சிக்னல்கள்",
+        "tab_settings": "⚙️ அமைப்புகள்"
     }
-    .stTabs [data-baseweb="tab-list"] { gap: 10px; }
-    .stTabs [data-baseweb="tab"] {
-        height: 45px;
-        background-color: #1e2329;
-        border-radius: 8px;
-        color: #848e9c;
-    }
-    .stTabs [aria-selected="true"] {
-        background-color: #f0b90b !important;
-        color: #000000 !important;
-        font-weight: bold;
-    }
-    </style>
-""", unsafe_allow_html=True)
+}
 
-# WhatsApp Message Sending Function
+# 2. LANGUAGE SELECTOR TOP BAR
+lang_col1, lang_col2 = st.columns([4, 1])
+with lang_col2:
+    selected_lang = st.selectbox("🌐 Language / භාෂාව", list(TRANSLATIONS.keys()), index=0)
+
+t = TRANSLATIONS[selected_lang] # Current Language Object
+
+# Session State Setup
+if 'wp_phone' not in st.session_state:
+    st.session_state['wp_phone'] = ""
+if 'wp_api_key' not in st.session_state:
+    st.session_state['wp_api_key'] = ""
+
 def send_whatsapp_alert(phone_number, api_key, message):
     try:
         encoded_msg = urllib.parse.quote(message)
@@ -49,7 +81,6 @@ def send_whatsapp_alert(phone_number, api_key, message):
     except Exception:
         return False
 
-# Fetch Binance Live Data
 @st.cache_data(ttl=10)
 def get_live_signal(symbol="BTCUSDT", interval="15m"):
     try:
@@ -58,7 +89,6 @@ def get_live_signal(symbol="BTCUSDT", interval="15m"):
         df = pd.DataFrame(res, columns=['time', 'open', 'high', 'low', 'close', 'volume', '_1', '_2', '_3', '_4', '_5', '_6'])
         df['close'] = df['close'].astype(float)
         
-        # Moving Averages & RSI
         df['ema20'] = df['close'].ewm(span=20, adjust=False).mean()
         df['ema50'] = df['close'].ewm(span=50, adjust=False).mean()
         
@@ -96,61 +126,48 @@ def get_live_signal(symbol="BTCUSDT", interval="15m"):
             
         return price, signal, color, tp, sl, reason
     except Exception:
-        return 0.0, "LOADING...", "#848e9c", "-", "-", "Error Connecting"
+        return 0.0, "LOADING...", "#848e9c", "-", "-", "Error"
 
-# Session State Setup
-if 'wp_phone' not in st.session_state:
-    st.session_state['wp_phone'] = ""
-if 'wp_api_key' not in st.session_state:
-    st.session_state['wp_api_key'] = ""
+# Tabs Setup
+tab_main, tab_settings = st.tabs([t['tab_main'], t['tab_settings']])
 
-# Navigation Tabs
-tab_main, tab_settings = st.tabs(["📊 Signals & Market", "⚙️ Settings"])
-
-# ----------------- TAB 1: SIGNALS & MARKET -----------------
 with tab_main:
-    st.markdown("<h3 style='text-align: center; color: #F0B90B;'>⚡ Binance Signal & WP Alert Center</h3>", unsafe_allow_html=True)
+    st.markdown(f"<h3 style='text-align: center; color: #F0B90B;'>{t['title']}</h3>", unsafe_allow_html=True)
     
-    # Dynamic Coin Selection
     col_coin, col_tf = st.columns([2, 1])
     with col_coin:
-        coin_list = ["BTCUSDT", "ETHUSDT", "SOLUSDT", "XRPUSDT", "BNBUSDT", "DOGEUSDT", "ADAUSDT", "AVAXUSDT", "NEARUSDT", "PEPEUSDT"]
-        selected_symbol = st.selectbox("Select Coin / Pair", coin_list, index=0)
+        coin_list = ["BTCUSDT", "ETHUSDT", "SOLUSDT", "XRPUSDT", "BNBUSDT", "DOGEUSDT"]
+        selected_symbol = st.selectbox(t['select_coin'], coin_list, index=0)
     with col_tf:
-        timeframe = st.selectbox("Timeframe", ["1m", "5m", "15m", "1h", "4h"], index=2)
+        timeframe = st.selectbox(t['timeframe'], ["1m", "5m", "15m", "1h", "4h"], index=2)
     
-    # Get Live Data for Selected Coin
     price, signal, color, tp, sl, reason = get_live_signal(selected_symbol, timeframe)
     
-    # Display Signal Card
     st.markdown(f"""
     <div style="background-color: #1e2329; border-left: 6px solid {color}; padding: 15px; border-radius: 8px; margin-top: 10px; margin-bottom: 15px;">
         <div style="display: flex; justify-content: space-between; align-items: center;">
             <h3 style="color: {color}; margin: 0;">{signal} ({selected_symbol})</h3>
-            <span style="color: #ffffff; font-weight: bold; font-size: 16px;">Price: ${price:,.4f}</span>
+            <span style="color: #ffffff; font-weight: bold;">{t['price']}: ${price:,.4f}</span>
         </div>
-        <p style="color: #848e9c; font-size: 13px; margin: 5px 0 10px 0;">Reason: {reason}</p>
+        <p style="color: #848e9c; font-size: 13px; margin: 5px 0 10px 0;">{t['reason']}: {reason}</p>
         <hr style="border: 0.5px solid #2b313a; margin-bottom: 10px;">
         <div style="display: flex; justify-content: space-between; font-size: 14px;">
-            <div><span style="color: #848e9c;">Take Profit (TP):</span><br><b style="color: #0ecb81;">${tp}</b></div>
-            <div><span style="color: #848e9c;">Stop Loss (SL):</span><br><b style="color: #f6465d;">${sl}</b></div>
+            <div><span style="color: #848e9c;">{t['tp']}:</span><br><b style="color: #0ecb81;">${tp}</b></div>
+            <div><span style="color: #848e9c;">{t['sl']}:</span><br><b style="color: #f6465d;">${sl}</b></div>
         </div>
     </div>
     """, unsafe_allow_html=True)
     
-    # Send Manual WP Alert Button
-    if st.button(f"📲 Send {selected_symbol} Signal to WhatsApp", type="primary", use_container_width=True):
+    if st.button(f"{t['send_wp']} ({selected_symbol})", type="primary", use_container_width=True):
         if st.session_state['wp_phone'] and st.session_state['wp_api_key']:
-            msg = f"🚨 BINANCE SIGNAL ALERT 🚨\n\nPair: {selected_symbol}\nSignal: {signal}\nPrice: ${price}\nTP: ${tp}\nSL: ${sl}\nReason: {reason}"
-            success = send_whatsapp_alert(st.session_state['wp_phone'], st.session_state['wp_api_key'], msg)
-            if success:
-                st.success("WhatsApp Message Sent Successfully! 🚀")
+            msg = f"🚨 BINANCE SIGNAL 🚨\nPair: {selected_symbol}\nSignal: {signal}\nPrice: ${price}\nTP: ${tp}\nSL: ${sl}"
+            if send_whatsapp_alert(st.session_state['wp_phone'], st.session_state['wp_api_key'], msg):
+                st.success("Sent Successfully!")
             else:
-                st.error("Failed to send WhatsApp message. Check Phone & API Key.")
+                st.error("Failed to send!")
         else:
-            st.warning("Please configure WhatsApp Phone Number & API Key in Settings Page first!")
+            st.warning("Please configure WP settings first!")
 
-    # Dynamic TradingView Chart
     tradingview_html = f"""
     <div class="tradingview-widget-container" style="height:450px;width:100%;">
       <div id="tradingview_chart" style="height:100%;width:100%;"></div>
@@ -160,13 +177,7 @@ with tab_main:
           "autosize": true,
           "symbol": "BINANCE:{selected_symbol}",
           "interval": "{timeframe.replace('m', '') if 'm' in timeframe else timeframe.replace('h', '60')}",
-          "timezone": "Etc/UTC",
           "theme": "dark",
-          "style": "1",
-          "locale": "en",
-          "enable_publishing": false,
-          "hide_side_toolbar": false,
-          "allow_symbol_change": true,
           "container_id": "tradingview_chart"
       }});
       </script>
@@ -174,24 +185,12 @@ with tab_main:
     """
     components.html(tradingview_html, height=450)
 
-# ----------------- TAB 2: SETTINGS -----------------
 with tab_settings:
-    st.markdown("<h3 style='color: #F0B90B;'>⚙️ WhatsApp Alert Settings</h3>", unsafe_allow_html=True)
+    st.markdown(f"<h3 style='color: #F0B90B;'>{t['settings_title']}</h3>", unsafe_allow_html=True)
+    phone_input = st.text_input(t['phone_label'], value=st.session_state['wp_phone'])
+    api_key_input = st.text_input(t['api_label'], value=st.session_state['wp_api_key'], type="password")
     
-    st.info("WhatsApp Alerts නොමිලේ ලබාගැනීමට CallMeBot භාවිත කරයි.")
-    
-    phone_input = st.text_input("WhatsApp Number (Country Code සමඟ e.g., +94771234567)", value=st.session_state['wp_phone'])
-    api_key_input = st.text_input("CallMeBot API Key", value=st.session_state['wp_api_key'], type="password")
-    
-    if st.button("Save Settings"):
+    if st.button(t['save_btn']):
         st.session_state['wp_phone'] = phone_input
         st.session_state['wp_api_key'] = api_key_input
-        st.success("Settings Saved!")
-
-    st.markdown("---")
-    st.markdown("**WhatsApp API Key නොමිලේ ලබාගන්නා ආකාරය:**")
-    st.markdown("""
-    1. Phone එකෙන් WhatsApp ඇරඹ තබා **`+34 644 10 55 84`** අංකය Contact එකක් ලෙස Save කරගන්න.
-    2. එම WhatsApp අංකයට **`I allow callmebot to send me messages`** කියා Message එකක් යවන්න.
-    3. තත්පර කිහිපයකින් ඔබට **API Key** එකක් ලැබෙනු ඇත. එය උඩින් ඇති කොටුවට ඇතුළත් කරන්න.
-    """)
+        st.success("Saved!")
