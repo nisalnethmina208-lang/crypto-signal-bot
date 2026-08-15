@@ -3,11 +3,9 @@ import pandas as pd
 import requests
 import plotly.graph_objects as go
 
-st.set_page_config(page_title="Crypto Signal Bot", layout="wide")
+st.set_page_config(page_title="Pro Crypto Signal App", layout="wide")
 
 HEADERS = {'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64)'}
-
-# Binance Public Data Nodes (Block නොවී Data ලබාගැනීමට)
 BASE_URLS = [
     "https://data-api.binance.vision/api/v3",
     "https://api1.binance.com/api/v3",
@@ -24,7 +22,6 @@ def fetch_binance_data(endpoint, params=None):
             continue
     return None
 
-# 1. Binance එකේ සියලුම USDT Pairs ලබාගැනීම
 @st.cache_data(ttl=3600)
 def get_all_usdt_symbols():
     data = fetch_binance_data("exchangeInfo")
@@ -33,8 +30,7 @@ def get_all_usdt_symbols():
         return sorted(symbols)
     return ["BTCUSDT", "ETHUSDT", "SOLUSDT", "BNBUSDT", "XRPUSDT", "ADAUSDT", "DOGEUSDT"]
 
-# 2. Market Candlestick Data ලබාගැනීම
-def get_klines(symbol, interval="1h", limit=100):
+def get_klines(symbol, interval="1h", limit=150):
     data = fetch_binance_data("klines", params={'symbol': symbol, 'interval': interval, 'limit': limit})
     if data and isinstance(data, list):
         df = pd.DataFrame(data, columns=['time', 'open', 'high', 'low', 'close', 'volume', '_', '_', '_', '_', '_', '_'])
@@ -46,18 +42,25 @@ def get_klines(symbol, interval="1h", limit=100):
         return df
     return pd.DataFrame()
 
-# 3. RSI ගණනය
-def calculate_rsi(df, period=14):
-    if df.empty or len(df) < period:
-        return pd.Series([50] * len(df))
+# Indicators Calculation
+def calculate_indicators(df):
+    if df.empty or len(df) < 50:
+        return df
+    
+    # RSI
     delta = df['close'].diff()
-    gain = (delta.where(delta > 0, 0)).rolling(window=period).mean()
-    loss = (-delta.where(delta < 0, 0)).rolling(window=period).mean()
+    gain = (delta.where(delta > 0, 0)).rolling(window=14).mean()
+    loss = (-delta.where(delta < 0, 0)).rolling(window=14).mean()
     rs = gain / loss
-    return 100 - (100 / (1 + rs))
+    df['RSI'] = 100 - (100 / (1 + rs))
+
+    # EMAs
+    df['EMA_20'] = df['close'].ewm(span=20, adjust=False).mean()
+    df['EMA_50'] = df['close'].ewm(span=50, adjust=False).mean()
+    return df
 
 # UI Interface
-st.title("⚡ Binance Crypto Signal App")
+st.title("⚡ Pro Binance Signal Dashboard")
 
 all_symbols = get_all_usdt_symbols()
 default_index = all_symbols.index('BTCUSDT') if 'BTCUSDT' in all_symbols else 0
@@ -67,34 +70,71 @@ timeframe = st.sidebar.selectbox("⏱️ Timeframe එක:", ["15m", "1h", "4h",
 
 df = get_klines(selected_symbol, interval=timeframe)
 
-if not df.empty:
-    df['RSI'] = calculate_rsi(df)
+if not df.empty and len(df) >= 50:
+    df = calculate_indicators(df)
 
     current_price = df['close'].iloc[-1]
     current_rsi = df['RSI'].iloc[-1]
+    ema_20 = df['EMA_20'].iloc[-1]
+    ema_50 = df['EMA_50'].iloc[-1]
 
     col1, col2 = st.columns([2, 1])
 
     with col1:
-        st.subheader(f"📊 {selected_symbol} Chart")
-        fig = go.Figure(data=[go.Candlestick(
+        st.subheader(f"📊 {selected_symbol} Live Chart")
+        fig = go.Figure()
+
+        # Candlestick
+        fig.add_trace(go.Candlestick(
             x=df['time'], open=df['open'], high=df['high'], low=df['low'], close=df['close'],
-            increasing_line_color='#26a69a', decreasing_line_color='#ef5350'
-        )])
-        fig.update_layout(template="plotly_dark", xaxis_rangeslider_visible=False, height=400, margin=dict(l=10, r=10, t=10, b=10))
+            name="Price", increasing_line_color='#26a69a', decreasing_line_color='#ef5350'
+        ))
+
+        # EMA Lines
+        fig.add_trace(go.Scatter(x=df['time'], y=df['EMA_20'], mode='lines', name='EMA 20', line=dict(color='#ff9800', width=1.5)))
+        fig.add_trace(go.Scatter(x=df['time'], y=df['EMA_50'], mode='lines', name='EMA 50', line=dict(color='#2196f3', width=1.5)))
+
+        fig.update_layout(template="plotly_dark", xaxis_rangeslider_visible=False, height=450, margin=dict(l=10, r=10, t=10, b=10))
         st.plotly_chart(fig, use_container_width=True)
 
     with col2:
-        st.subheader("🎯 Live Signal")
+        st.subheader("🎯 Signal Analysis")
         st.metric("Current Price", f"${current_price:,.4f}")
         st.metric("RSI (14)", f"{current_rsi:.2f}")
         
         st.divider()
-        if current_rsi < 30:
-            st.success("🚀 SIGNAL: BUY (Oversold)")
-        elif current_rsi > 70:
-            st.error("🔻 SIGNAL: SELL (Overbought)")
+
+        # Advanced Signal Logic
+        if current_rsi < 35 and current_price > ema_20:
+            st.success("🚀 STRONG BUY SIGNAL")
+            tp = current_price * 1.03
+            sl = current_price * 0.985
+            st.write(f"🎯 **Target (TP 3%):** `${tp:,.4f}`")
+            st.write(f"🛡️ **Stop Loss (SL 1.5%):** `${sl:,.4f}`")
+
+        elif current_rsi < 40:
+            st.info("📈 BUY SIGNAL (Oversold Area)")
+            tp = current_price * 1.02
+            sl = current_price * 0.99
+            st.write(f"🎯 **Target (TP 2%):** `${tp:,.4f}`")
+            st.write(f"🛡️ **Stop Loss (SL 1%):** `${sl:,.4f}`")
+
+        elif current_rsi > 65 and current_price < ema_20:
+            st.error("🔻 STRONG SELL SIGNAL")
+            tp = current_price * 0.97
+            sl = current_price * 1.015
+            st.write(f"🎯 **Target (TP 3%):** `${tp:,.4f}`")
+            st.write(f"🛡️ **Stop Loss (SL 1.5%):** `${sl:,.4f}`")
+
+        elif current_rsi > 60:
+            st.warning("📉 SELL SIGNAL (Overbought Area)")
+            tp = current_price * 0.98
+            sl = current_price * 1.01
+            st.write(f"🎯 **Target (TP 2%):** `${tp:,.4f}`")
+            st.write(f"🛡️ **Stop Loss (SL 1%):** `${sl:,.4f}`")
+
         else:
-            st.warning("⏳ SIGNAL: HOLD (Neutral)")
+            st.warning("⏳ SIGNAL: NEUTRAL (Hold/Wait)")
+            st.write("Market එක එක දිශාවකට තහවුරු වන තෙක් රැඳී සිටින්න.")
 else:
     st.error("Data load කරගැනීමට නොහැකි විය. කරුණාකර පිටුව Refresh කරන්න.")
