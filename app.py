@@ -3,30 +3,40 @@ import pandas as pd
 import requests
 import plotly.graph_objects as go
 
-st.set_page_config(page_title="Crypto Signal Bot", layout="wide", initial_sidebar_state="expanded")
+st.set_page_config(page_title="Crypto Signal Bot", layout="wide")
 
 HEADERS = {'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64)'}
+
+# Binance Public Data Nodes (Block නොවී Data ලබාගැනීමට)
+BASE_URLS = [
+    "https://data-api.binance.vision/api/v3",
+    "https://api1.binance.com/api/v3",
+    "https://api2.binance.com/api/v3"
+]
+
+def fetch_binance_data(endpoint, params=None):
+    for base in BASE_URLS:
+        try:
+            res = requests.get(f"{base}/{endpoint}", params=params, headers=HEADERS, timeout=5)
+            if res.status_code == 200:
+                return res.json()
+        except Exception:
+            continue
+    return None
 
 # 1. Binance එකේ සියලුම USDT Pairs ලබාගැනීම
 @st.cache_data(ttl=3600)
 def get_all_usdt_symbols():
-    url = "https://api.binance.com/api/v3/exchangeInfo"
-    try:
-        res = requests.get(url, headers=HEADERS, timeout=10).json()
-        if 'symbols' in res:
-            symbols = [s['symbol'] for s in res['symbols'] if s['symbol'].endswith('USDT') and s['status'] == 'TRADING']
-            return sorted(symbols)
-    except Exception:
-        pass
-    # API නොලැබුණහොත් Default Coins
+    data = fetch_binance_data("exchangeInfo")
+    if data and 'symbols' in data:
+        symbols = [s['symbol'] for s in data['symbols'] if s['symbol'].endswith('USDT') and s['status'] == 'TRADING']
+        return sorted(symbols)
     return ["BTCUSDT", "ETHUSDT", "SOLUSDT", "BNBUSDT", "XRPUSDT", "ADAUSDT", "DOGEUSDT"]
 
 # 2. Market Candlestick Data ලබාගැනීම
 def get_klines(symbol, interval="1h", limit=100):
-    url = f"https://api.binance.com/api/v3/klines?symbol={symbol}&interval={interval}&limit={limit}"
-    try:
-        res = requests.get(url, headers=HEADERS, timeout=10)
-        data = res.json()
+    data = fetch_binance_data("klines", params={'symbol': symbol, 'interval': interval, 'limit': limit})
+    if data and isinstance(data, list):
         df = pd.DataFrame(data, columns=['time', 'open', 'high', 'low', 'close', 'volume', '_', '_', '_', '_', '_', '_'])
         df['time'] = pd.to_datetime(df['time'], unit='ms')
         df['close'] = df['close'].astype(float)
@@ -34,8 +44,7 @@ def get_klines(symbol, interval="1h", limit=100):
         df['high'] = df['high'].astype(float)
         df['low'] = df['low'].astype(float)
         return df
-    except Exception:
-        return pd.DataFrame()
+    return pd.DataFrame()
 
 # 3. RSI ගණනය
 def calculate_rsi(df, period=14):
@@ -47,16 +56,15 @@ def calculate_rsi(df, period=14):
     rs = gain / loss
     return 100 - (100 / (1 + rs))
 
-# Header UI
+# UI Interface
 st.title("⚡ Binance Crypto Signal App")
 
-# Sidebar - Coin Selection
 all_symbols = get_all_usdt_symbols()
 default_index = all_symbols.index('BTCUSDT') if 'BTCUSDT' in all_symbols else 0
+
 selected_symbol = st.sidebar.selectbox("🪙 Coin එක තෝරන්න:", all_symbols, index=default_index)
 timeframe = st.sidebar.selectbox("⏱️ Timeframe එක:", ["15m", "1h", "4h", "1d"], index=1)
 
-# Fetch Data
 df = get_klines(selected_symbol, interval=timeframe)
 
 if not df.empty:
@@ -65,7 +73,6 @@ if not df.empty:
     current_price = df['close'].iloc[-1]
     current_rsi = df['RSI'].iloc[-1]
 
-    # Layout: Chart & Signals
     col1, col2 = st.columns([2, 1])
 
     with col1:
@@ -90,4 +97,4 @@ if not df.empty:
         else:
             st.warning("⏳ SIGNAL: HOLD (Neutral)")
 else:
-    st.warning("Data load කරගැනීමට නොහැකි විය. වෙනත් Coin එකක් තෝරා බලන්න.")
+    st.error("Data load කරගැනීමට නොහැකි විය. කරුණාකර පිටුව Refresh කරන්න.")
