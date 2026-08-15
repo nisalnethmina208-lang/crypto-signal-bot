@@ -1,100 +1,35 @@
 import streamlit as st
-import streamlit.components.v1 as components
 
-# Page config
-st.set_page_config(
-    page_title="Crypto Signal & Market",
-    page_icon="⚡",
-    layout="wide",
-    initial_sidebar_state="collapsed"
-)
-
-# Custom CSS - Streamlit Branding එක Hide කිරීම සහ Mobile Theme එක සකස් කිරීම
-st.markdown("""
-    <style>
-    #MainMenu {visibility: hidden;}
-    header {visibility: hidden;}
-    footer {visibility: hidden;}
-    .block-container {
-        padding-top: 1rem;
-        padding-bottom: 2rem;
-        padding-left: 0.8rem;
-        padding-right: 0.8rem;
-    }
-    .stTabs [data-baseweb="tab-list"] {
-        gap: 10px;
-    }
-    .stTabs [data-baseweb="tab"] {
-        height: 45px;
-        white-space: pre-wrap;
-        background-color: #1e2329;
-        border-radius: 8px;
-        color: #848e9c;
-    }
-    .stTabs [aria-selected="true"] {
-        background-color: #f0b90b !important;
-        color: #000000 !important;
-        font-weight: bold;
-    }
-    </style>
-""", unsafe_allow_html=True)
-
-# Navigation Tabs (Pages 2)
-tab_main, tab_settings = st.tabs(["📊 Signals & Market", "⚙️ Settings"])
-
-# ----------------- PAGE 1: SIGNALS & MARKET -----------------
-with tab_main:
-    st.markdown("<h3 style='text-align: center; color: #F0B90B; margin-bottom: 15px;'>⚡ Binance Signal Center</h3>", unsafe_allow_html=True)
+# Signal Card Component
+def render_signal_card(symbol, signal_type, entry, tp, sl, confidence, reason):
+    bg_color = "#0ecb81" if signal_type == "BUY" else "#f6465d"
     
-    # Top Live Indicators / Metrics
-    col1, col2 = st.columns(2)
-    with col1:
-        st.metric(label="Pair", value="BTC/USDT", delta="+1.45% (24h)")
-    with col2:
-        st.metric(label="Current Signal", value="STRONG BUY 🟢", delta="EMA 20/50 Cross")
-    
-    st.write("")
-    
-    # Interactive Binance TradingView Chart (Real-time Zoom & Indicators)
-    tradingview_html = """
-    <div class="tradingview-widget-container" style="height:480px;width:100%;">
-      <div id="tradingview_chart" style="height:100%;width:100%;"></div>
-      <script type="text/javascript" src="https://s3.tradingview.com/tv.js"></script>
-      <script type="text/javascript">
-      new TradingView.widget({
-          "autosize": true,
-          "symbol": "BINANCE:BTCUSDT",
-          "interval": "15",
-          "timezone": "Etc/UTC",
-          "theme": "dark",
-          "style": "1",
-          "locale": "en",
-          "enable_publishing": false,
-          "hide_side_toolbar": false,
-          "allow_symbol_change": true,
-          "details": true,
-          "container_id": "tradingview_chart"
-      });
-      </script>
+    card_html = f"""
+    <div style="background-color: #1e2329; border-left: 6px solid {bg_color}; padding: 15px; border-radius: 8px; margin-bottom: 20px;">
+        <div style="display: flex; justify-content: space-between; align-items: center;">
+            <h3 style="color: {bg_color}; margin: 0;">{"🟢" if signal_type == "BUY" else "🔴"} {signal_type} SIGNAL ({symbol})</h3>
+            <span style="background-color: {bg_color}; color: black; padding: 4px 10px; border-radius: 12px; font-weight: bold; font-size: 12px;">
+                Confidence: {confidence}%
+            </span>
+        </div>
+        <p style="color: #848e9c; font-size: 13px; margin: 5px 0 10px 0;">Reason: {reason}</p>
+        <hr style="border: 0.5px solid #2b313a; margin-bottom: 10px;">
+        <div style="display: flex; justify-content: space-between; font-size: 14px;">
+            <div><span style="color: #848e9c;">Entry Range:</span><br><b style="color: #eaecef;">{entry}</b></div>
+            <div><span style="color: #848e9c;">Take Profit (TP):</span><br><b style="color: #0ecb81;">{tp}</b></div>
+            <div><span style="color: #848e9c;">Stop Loss (SL):</span><br><b style="color: #f6465d;">{sl}</b></div>
+        </div>
     </div>
     """
-    components.html(tradingview_html, height=480)
+    st.markdown(card_html, unsafe_allow_html=True)
 
-# ----------------- PAGE 2: SETTINGS -----------------
-with tab_settings:
-    st.markdown("<h3 style='color: #F0B90B;'>⚙️ App Settings</h3>", unsafe_allow_html=True)
-    
-    st.subheader("API Connections")
-    st.text_input("Binance API Key", type="password")
-    st.text_input("Binance Secret Key", type="password")
-    
-    st.subheader("Signal Configuration")
-    st.selectbox("Default Timeframe", ["1m", "5m", "15m", "1h", "4h", "1D"], index=2)
-    st.slider("RSI Overbought Threshold", 60, 80, 70)
-    st.slider("RSI Oversold Threshold", 20, 40, 30)
-    
-    st.checkbox("Enable Sound Alerts", value=True)
-    st.checkbox("Enable Push Notifications", value=True)
-    
-    if st.button("Save Settings", type="primary"):
-        st.success("Settings saved successfully!")
+# App එකේ Main page එකට Call කරන ආකාරය:
+render_signal_card(
+    symbol="BTC/USDT (15m)",
+    signal_type="BUY",
+    entry="$63,200 - $63,350",
+    tp="$64,500",
+    sl="$62,700",
+    confidence=88,
+    reason="RSI Oversold (28) + EMA 20/50 Golden Cross"
+)
