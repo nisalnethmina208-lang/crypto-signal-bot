@@ -4,105 +4,97 @@ import requests
 import pandas as pd
 
 # Page Configuration
-st.set_page_config(page_title="Binance Crypto Signal Center", layout="wide")
+st.set_page_config(page_title="Crypto Live Signal Center", layout="wide")
 
-# Fallback Top Coins List
 TOP_COINS = [
     "BTCUSDT", "ETHUSDT", "SOLUSDT", "BNBUSDT", "XRPUSDT", "ADAUSDT", "DOGEUSDT", 
-    "AVAXUSDT", "DOTUSDT", "LINKUSDT", "MATICUSDT", "SHIBUSDT", "LTCUSDT", "TRXUSDT",
-    "NEARUSDT", "APTUSDT", "SUIUSDT", "PEPEUSDT", "FETUSDT", "INJUSDT", "RNDRUSDT",
-    "FILUSDT", "OPUSDT", "ARBUSDT", "ATOMUSDT", "WIFUSDT", "BONKUSDT", "FLOKIUSDT",
-    "GALAUSDT", "FTMUSDT", "SANDUSDT", "MANAUSDT", "ALGOUSDT", "STXUSDT", "TIAUSDT"
+    "AVAXUSDT", "DOTUSDT", "LINKUSDT", "TRXUSDT", "NEARUSDT", "APTUSDT", "SUIUSDT", 
+    "PEPEUSDT", "FETUSDT", "INJUSDT", "FILUSDT", "OPUSDT", "ARBUSDT", "SHIBUSDT"
 ]
 
-@st.cache_data(ttl=3600)
-def get_all_binance_symbols():
-    try:
-        url = "https://api.binance.com/api/v3/exchangeInfo"
-        headers = {'User-Agent': 'Mozilla/5.0'}
-        res = requests.get(url, headers=headers, timeout=5).json()
-        symbols = [
-            s['symbol'] for s in res.get('symbols', [])
-            if s['symbol'].endswith('USDT') and s['status'] == 'TRADING'
-            and not s['symbol'].endswith('UPUSDT') and not s['symbol'].endswith('DOWNUSDT')
-        ]
-        if symbols:
-            symbols.sort()
-            return symbols
-        return TOP_COINS
-    except Exception:
-        return TOP_COINS
-
-# Fetch Signal
-@st.cache_data(ttl=10)
+# Fetch Multi-Source Live Signal (Bybit Primary + Binance Backup)
+@st.cache_data(ttl=5)
 def get_live_signal(symbol="BTCUSDT", interval="15m"):
+    interval_map = {"1m": "1", "5m": "5", "15m": "15", "1h": "60", "4h": "240"}
+    bybit_interval = interval_map.get(interval, "15")
+    
+    df = None
+    
+    # 1. Try Bybit API (No IP Block on Streamlit Cloud)
     try:
-        url = f"https://api.binance.com/api/v3/klines?symbol={symbol}&interval={interval}&limit=100"
-        headers = {'User-Agent': 'Mozilla/5.0'}
-        res = requests.get(url, headers=headers, timeout=5).json()
-        
-        if not isinstance(res, list):
-            return 0.0, "API LIMITED ⚠️", "#848e9c", "-", "-", "Binance Rate Limit"
-
-        df = pd.DataFrame(res, columns=['time', 'open', 'high', 'low', 'close', 'volume', '_1', '_2', '_3', '_4', '_5', '_6'])
-        df['close'] = df['close'].astype(float)
-        
-        df['ema20'] = df['close'].ewm(span=20, adjust=False).mean()
-        df['ema50'] = df['close'].ewm(span=50, adjust=False).mean()
-        
-        delta = df['close'].diff()
-        gain = (delta.where(delta > 0, 0)).rolling(window=14).mean()
-        loss = (-delta.where(delta < 0, 0)).rolling(window=14).mean()
-        rs = gain / loss
-        df['rsi'] = 100 - (100 / (1 + rs))
-        
-        latest = df.iloc[-1]
-        prev = df.iloc[-2]
-        price = latest['close']
-        
-        bullish = latest['ema20'] > latest['ema50']
-        ema_cross_up = (prev['ema20'] <= prev['ema50']) and (latest['ema20'] > latest['ema50'])
-        ema_cross_down = (prev['ema20'] >= prev['ema50']) and (latest['ema20'] < latest['ema50'])
-        
-        if ema_cross_up or (bullish and latest['rsi'] < 60):
-            signal = "BUY SIGNAL 🟢"
-            color = "#0ecb81"
-            tp = round(price * 1.02, 4)
-            sl = round(price * 0.99, 4)
-            reason = f"Bullish Trend (EMA20 > EMA50) | RSI: {round(latest['rsi'], 1)}"
-        elif ema_cross_down or (not bullish and latest['rsi'] > 40):
-            signal = "SELL SIGNAL 🔴"
-            color = "#f6465d"
-            tp = round(price * 0.98, 4)
-            sl = round(price * 1.01, 4)
-            reason = f"Bearish Trend (EMA20 < EMA50) | RSI: {round(latest['rsi'], 1)}"
-        else:
-            signal = "HOLD / NEUTRAL 🟡"
-            color = "#f0b90b"
-            tp = "-"
-            sl = "-"
-            reason = f"Market Consolidating | RSI: {round(latest['rsi'], 1)}"
-            
-        return price, signal, color, tp, sl, reason
+        url = f"https://api.bybit.com/v5/market/kline?category=spot&symbol={symbol}&interval={bybit_interval}&limit=100"
+        res = requests.get(url, timeout=4).json()
+        if res.get("retCode") == 0 and res.get("result", {}).get("list"):
+            raw_candles = res["result"]["list"]
+            df = pd.DataFrame(raw_candles, columns=['time', 'open', 'high', 'low', 'close', 'volume', 'turnover'])
+            df['close'] = df['close'].astype(float)
+            df = df.iloc[::-1].reset_index(drop=True)
     except Exception:
-        return 0.0, "LOADING ERROR", "#848e9c", "-", "-", "Network issue"
+        df = None
 
-# Header
-st.markdown("<h2 style='text-align: center; color: #F0B90B;'>⚡ Binance Crypto Signal Center</h2>", unsafe_allow_html=True)
+    # 2. Fallback to Binance Mirror API if Bybit fails
+    if df is None or df.empty:
+        try:
+            bin_url = f"https://api1.binance.com/api/v3/klines?symbol={symbol}&interval={interval}&limit=100"
+            res_bin = requests.get(bin_url, timeout=4).json()
+            if isinstance(res_bin, list) and len(res_bin) > 0:
+                df = pd.DataFrame(res_bin, columns=['time', 'open', 'high', 'low', 'close', 'volume', '_1', '_2', '_3', '_4', '_5', '_6'])
+                df['close'] = df['close'].astype(float)
+        except Exception:
+            df = None
 
-all_coins = get_all_binance_symbols()
+    if df is None or df.empty:
+        return 0.0, "DATA ERROR ⚠️", "#848e9c", "-", "-", "Servers Busy - Try Changing Coin"
 
-# --- DEDICATED SEARCH BAR SECTION ---
-search_query = st.text_input("🔍 Coin එකක් Search කරන්න (උදා: PEPE, BTC, SOL, ETH):", "").strip().upper()
+    # Technical Analysis (EMA & RSI)
+    df['ema20'] = df['close'].ewm(span=20, adjust=False).mean()
+    df['ema50'] = df['close'].ewm(span=50, adjust=False).mean()
+    
+    delta = df['close'].diff()
+    gain = (delta.where(delta > 0, 0)).rolling(window=14).mean()
+    loss = (-delta.where(delta < 0, 0)).rolling(window=14).mean()
+    rs = gain / loss
+    df['rsi'] = 100 - (100 / (1 + rs))
+    
+    latest = df.iloc[-1]
+    prev = df.iloc[-2]
+    price = latest['close']
+    
+    bullish = latest['ema20'] > latest['ema50']
+    ema_cross_up = (prev['ema20'] <= prev['ema50']) and (latest['ema20'] > latest['ema50'])
+    ema_cross_down = (prev['ema20'] >= prev['ema50']) and (latest['ema20'] < latest['ema50'])
+    
+    # Clearly defines Market UP or DOWN
+    if ema_cross_up or (bullish and latest['rsi'] < 60):
+        signal = "BUY SIGNAL (මාකට් එක UP වේ) 🟢"
+        color = "#0ecb81"
+        tp = round(price * 1.02, 4)
+        sl = round(price * 0.99, 4)
+        reason = f"Bullish Trend (EMA20 > EMA50) | RSI: {round(latest['rsi'], 1)}"
+    elif ema_cross_down or (not bullish and latest['rsi'] > 40):
+        signal = "SELL SIGNAL (මාකට් එක DOWN වේ) 🔴"
+        color = "#f6465d"
+        tp = round(price * 0.98, 4)
+        sl = round(price * 1.01, 4)
+        reason = f"Bearish Trend (EMA20 < EMA50) | RSI: {round(latest['rsi'], 1)}"
+    else:
+        signal = "HOLD / NEUTRAL (රඳවා තබාගන්න) 🟡"
+        color = "#f0b90b"
+        tp = "-"
+        sl = "-"
+        reason = f"Market Consolidating | RSI: {round(latest['rsi'], 1)}"
+        
+    return price, signal, color, tp, sl, reason
 
-# Filter coins based on search text
-if search_query:
-    filtered_coins = [c for c in all_coins if search_query in c]
-    if not filtered_coins:
-        st.warning(f"'{search_query}' නමින් Coin එකක් හමුවූයේ නැත. පහත ලැයිස්තුවෙන් තෝරන්න.")
-        filtered_coins = all_coins
-else:
-    filtered_coins = all_coins
+# Header UI
+st.markdown("<h2 style='text-align: center; color: #F0B90B;'>⚡ Crypto Live Signal Center</h2>", unsafe_allow_html=True)
+
+# Search Bar
+search_query = st.text_input("🔍 Coin එකක් Search කරන්න (උදා: TRX, BTC, SOL):", "").strip().upper()
+
+filtered_coins = [c for c in TOP_COINS if search_query in c] if search_query else TOP_COINS
+if not filtered_coins:
+    filtered_coins = TOP_COINS
 
 col1, col2 = st.columns(2)
 with col1:
@@ -112,14 +104,14 @@ with col2:
 
 price, signal, color, tp, sl, reason = get_live_signal(selected_symbol, timeframe)
 
-# Signal Box
+# Signal Result Box
 st.markdown(f"""
 <div style="background-color: #1e2329; border: 2px solid {color}; padding: 20px; border-radius: 12px; margin: 15px 0;">
     <div style="display: flex; justify-content: space-between; align-items: center;">
-        <h2 style="color: {color}; margin: 0;">{signal} ({selected_symbol})</h2>
+        <h2 style="color: {color}; margin: 0;">{signal}</h2>
         <h3 style="color: #ffffff; margin: 0;">මිල: ${price:,.4f}</h3>
     </div>
-    <p style="color: #848e9c; font-size: 14px; margin-top: 8px;"><b>හේතුව:</b> {reason}</p>
+    <p style="color: #848e9c; font-size: 14px; margin-top: 10px;"><b>හේතුව:</b> {reason}</p>
     <hr style="border: 0.5px solid #2b313a; margin: 15px 0;">
     <div style="display: flex; justify-content: space-around; text-align: center;">
         <div>
