@@ -4,79 +4,52 @@ import requests
 import pandas as pd
 
 # Page Configuration
-st.set_page_config(page_title="Binance All-Coins Signal Center", layout="wide")
+st.set_page_config(page_title="Binance Crypto Signal Center", layout="wide")
 
-# Fetch All Trading Pairs from Binance
+# Fallback Top Coins List
+TOP_COINS = [
+    "BTCUSDT", "ETHUSDT", "SOLUSDT", "BNBUSDT", "XRPUSDT", "ADAUSDT", "DOGEUSDT", 
+    "AVAXUSDT", "DOTUSDT", "LINKUSDT", "MATICUSDT", "SHIBUSDT", "LTCUSDT", "TRXUSDT",
+    "NEARUSDT", "APTUSDT", "SUIUSDT", "PEPEUSDT", "FETUSDT", "INJUSDT", "RNDRUSDT",
+    "FILUSDT", "OPUSDT", "ARBUSDT", "ATOMUSDT", "WIFUSDT", "BONKUSDT", "FLOKIUSDT",
+    "GALAUSDT", "FTMUSDT", "SANDUSDT", "MANAUSDT", "ALGOUSDT", "STXUSDT", "TIAUSDT"
+]
+
 @st.cache_data(ttl=3600)
-def get_all_binance_usdt_symbols():
+def get_all_binance_symbols():
     try:
         url = "https://api.binance.com/api/v3/exchangeInfo"
-        res = requests.get(url, timeout=10).json()
+        headers = {'User-Agent': 'Mozilla/5.0'}
+        res = requests.get(url, headers=headers, timeout=5).json()
         symbols = [
-            s['symbol'] for s in res['symbols']
+            s['symbol'] for s in res.get('symbols', [])
             if s['symbol'].endswith('USDT') and s['status'] == 'TRADING'
             and not s['symbol'].endswith('UPUSDT') and not s['symbol'].endswith('DOWNUSDT')
         ]
-        symbols.sort()
-        return symbols
+        if symbols:
+            symbols.sort()
+            return symbols
+        return TOP_COINS
     except Exception:
-        return ["BTCUSDT", "ETHUSDT", "SOLUSDT", "BNBUSDT", "XRPUSDT", "ADAUSDT", "DOGEUSDT"]
+        return TOP_COINS
 
-# Translations (English, Sinhala, Tamil)
-TRANSLATIONS = {
-    "English": {
-        "title": "⚡ Binance Crypto Signal Center (All Coins)",
-        "select_coin": "Search / Select Any Crypto Pair",
-        "timeframe": "Select Timeframe",
-        "price": "Current Price",
-        "reason": "Signal Reason",
-        "tp": "Take Profit (TP)",
-        "sl": "Stop Loss (SL)",
-        "refresh_note": "🔄 Signals update automatically based on Live Market Data (EMA & RSI)."
-    },
-    "සිංහල": {
-        "title": "⚡ බයිනෑන්ස් ක්‍රිප්ටෝ සිග්නල් මධ්‍යස්ථානය",
-        "select_coin": "Coin එක Search කරන්න / තෝරන්න",
-        "timeframe": "කාලරාමුව තෝරන්න (Timeframe)",
-        "price": "වත්මන් මිල",
-        "reason": "සිග්නල් එකට හේතුව",
-        "tp": "වාසි ලබාගැනීම (TP)",
-        "sl": "අලාභය පාලනය (SL)",
-        "refresh_note": "🔄 වෙළඳපොළේ සජීවී දත්ත (EMA & RSI) මත සිග්නල් ස්වයංක්‍රීයව වෙනස් වේ."
-    },
-    "தமிழ்": {
-        "title": "⚡ Binance Crypto சிக்னல் மையம்",
-        "select_coin": "நாணயங்களைத் தேடவும் / தேர்ந்தெடுக்கவும்",
-        "timeframe": "காலகட்டம்",
-        "price": "தற்போதைய விலை",
-        "reason": "சிக்னல் காரணம்",
-        "tp": "இலாபம் (TP)",
-        "sl": "நஷ்டத் தடுப்பு (SL)",
-        "refresh_note": "🔄 சிக்னல்கள் தானாகவே கணக்கிடப்படும்."
-    }
-}
-
-# Language Selector
-lang_col1, lang_col2 = st.columns([4, 1])
-with lang_col2:
-    selected_lang = st.selectbox("🌐 Language / භාෂාව", list(TRANSLATIONS.keys()), index=1)
-
-t = TRANSLATIONS[selected_lang]
-
-# Fetch Live Signal from Binance
+# Fetch Signal
 @st.cache_data(ttl=10)
 def get_live_signal(symbol="BTCUSDT", interval="15m"):
     try:
         url = f"https://api.binance.com/api/v3/klines?symbol={symbol}&interval={interval}&limit=100"
-        res = requests.get(url, timeout=5).json()
+        headers = {'User-Agent': 'Mozilla/5.0'}
+        res = requests.get(url, headers=headers, timeout=5).json()
+        
+        if not isinstance(res, list):
+            return 0.0, "API LIMITED ⚠️", "#848e9c", "-", "-", "Binance Rate Limit"
+
         df = pd.DataFrame(res, columns=['time', 'open', 'high', 'low', 'close', 'volume', '_1', '_2', '_3', '_4', '_5', '_6'])
         df['close'] = df['close'].astype(float)
         
-        # EMA Calculations
         df['ema20'] = df['close'].ewm(span=20, adjust=False).mean()
         df['ema50'] = df['close'].ewm(span=50, adjust=False).mean()
         
-        # RSI Calculation
         delta = df['close'].diff()
         gain = (delta.where(delta > 0, 0)).rolling(window=14).mean()
         loss = (-delta.where(delta < 0, 0)).rolling(window=14).mean()
@@ -112,41 +85,49 @@ def get_live_signal(symbol="BTCUSDT", interval="15m"):
             
         return price, signal, color, tp, sl, reason
     except Exception:
-        return 0.0, "LOADING...", "#848e9c", "-", "-", "Binance Data Loading..."
+        return 0.0, "LOADING ERROR", "#848e9c", "-", "-", "Network issue"
 
-# Header & Controls
-st.markdown(f"<h2 style='text-align: center; color: #F0B90B;'>{t['title']}</h2>", unsafe_allow_html=True)
-st.caption(f"<p style='text-align: center;'>{t['refresh_note']}</p>", unsafe_allow_html=True)
+# Header
+st.markdown("<h2 style='text-align: center; color: #F0B90B;'>⚡ Binance Crypto Signal Center</h2>", unsafe_allow_html=True)
 
-# Load All USDT Coins Dynamic List
-all_coins = get_all_binance_usdt_symbols()
-default_index = all_coins.index("BTCUSDT") if "BTCUSDT" in all_coins else 0
+all_coins = get_all_binance_symbols()
+
+# --- DEDICATED SEARCH BAR SECTION ---
+search_query = st.text_input("🔍 Coin එකක් Search කරන්න (උදා: PEPE, BTC, SOL, ETH):", "").strip().upper()
+
+# Filter coins based on search text
+if search_query:
+    filtered_coins = [c for c in all_coins if search_query in c]
+    if not filtered_coins:
+        st.warning(f"'{search_query}' නමින් Coin එකක් හමුවූයේ නැත. පහත ලැයිස්තුවෙන් තෝරන්න.")
+        filtered_coins = all_coins
+else:
+    filtered_coins = all_coins
 
 col1, col2 = st.columns(2)
 with col1:
-    selected_symbol = st.selectbox(t['select_coin'], all_coins, index=default_index)
+    selected_symbol = st.selectbox("Coin එක තෝරන්න", filtered_coins, index=0)
 with col2:
-    timeframe = st.selectbox(t['timeframe'], ["1m", "5m", "15m", "1h", "4h"], index=2)
+    timeframe = st.selectbox("Timeframe", ["1m", "5m", "15m", "1h", "4h"], index=2)
 
-# Load Signal Data
 price, signal, color, tp, sl, reason = get_live_signal(selected_symbol, timeframe)
 
-# Signal Dashboard Box
+# Signal Box
 st.markdown(f"""
 <div style="background-color: #1e2329; border: 2px solid {color}; padding: 20px; border-radius: 12px; margin: 15px 0;">
     <div style="display: flex; justify-content: space-between; align-items: center;">
         <h2 style="color: {color}; margin: 0;">{signal} ({selected_symbol})</h2>
-        <h3 style="color: #ffffff; margin: 0;">{t['price']}: ${price:,.4f}</h3>
+        <h3 style="color: #ffffff; margin: 0;">මිල: ${price:,.4f}</h3>
     </div>
-    <p style="color: #848e9c; font-size: 14px; margin-top: 8px;"><b>{t['reason']}:</b> {reason}</p>
+    <p style="color: #848e9c; font-size: 14px; margin-top: 8px;"><b>හේතුව:</b> {reason}</p>
     <hr style="border: 0.5px solid #2b313a; margin: 15px 0;">
     <div style="display: flex; justify-content: space-around; text-align: center;">
         <div>
-            <span style="color: #848e9c; font-size: 14px;">{t['tp']}</span><br>
+            <span style="color: #848e9c; font-size: 14px;">Take Profit (TP)</span><br>
             <b style="color: #0ecb81; font-size: 22px;">${tp}</b>
         </div>
         <div>
-            <span style="color: #848e9c; font-size: 14px;">{t['sl']}</span><br>
+            <span style="color: #848e9c; font-size: 14px;">Stop Loss (SL)</span><br>
             <b style="color: #f6465d; font-size: 22px;">${sl}</b>
         </div>
     </div>
