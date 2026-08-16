@@ -1,6 +1,6 @@
 import streamlit as st
-import streamlit.components.v1 as components
 import requests
+from streamlit_cookies_controller import CookieController
 
 # Page Configuration
 st.set_page_config(
@@ -9,8 +9,11 @@ st.set_page_config(
     layout="centered"
 )
 
+# Cookie Controller සක්‍රිය කිරීම
+controller = CookieController()
+
 # ---------------------------------------------------------
-# 🔑 ACTIVATION KEYS LIST (ඔබට අවශ්‍ය Keys මෙතැනට දාන්න)
+# 🔑 ACTIVATION KEYS LIST
 # ---------------------------------------------------------
 VALID_KEYS = [
     "KEY-USER1-8899",
@@ -19,43 +22,12 @@ VALID_KEYS = [
     "MY-SECRET-PASS"
 ]
 
-# ---------------------------------------------------------
-# 💾 BROWSER LOCALSTORAGE LOCK SYSTEM
-# ---------------------------------------------------------
+# Browser Cookie එක පරීක්ෂා කිරීම
+saved_key = controller.get("app_activation_key")
+is_valid_user = saved_key in VALID_KEYS
 
-# Session State Initialization
-if "authenticated" not in st.session_state:
-    st.session_state["authenticated"] = False
-
-# LocalStorage එකෙන් Key එක කියවීම සහ Save කිරීම සඳහා HTML/JS Injector
-def inject_localstorage_script():
-    js_code = f"""
-    <script>
-        const validKeys = {list(VALID_KEYS)};
-        const savedKey = localStorage.getItem('user_activation_key');
-
-        // URL query parameter එකක් මගින් Streamlit Session එක බලපාන හැටි
-        const urlParams = new URLSearchParams(window.location.search);
-        
-        if (savedKey && validKeys.includes(savedKey)) {{
-            if (!urlParams.has('auth')) {{
-                urlParams.set('auth', 'true');
-                window.location.search = urlParams.toString();
-            }}
-        }}
-    </script>
-    """
-    components.html(js_code, height=0, width=0)
-
-# Browser හි Save වී ඇති බව URL එකෙන් පරීක්ෂා කිරීම
-if st.query_params.get("auth") == "true":
-    st.session_state["authenticated"] = True
-
-# Script එක Run කිරීම
-inject_localstorage_script()
-
-# Activation Screen (පළමු වරට එන අයට පෙනෙන කොටස)
-def show_activation_screen():
+# Activation Screen
+if not is_valid_user:
     st.markdown("""
     <div style="text-align: center; padding: 25px;">
         <h2 style="color: #F0B90B;">🔐 APP ACTIVATION REQUIRED</h2>
@@ -66,25 +38,15 @@ def show_activation_screen():
     col1, col2, col3 = st.columns([1, 2, 1])
     with col2:
         user_key = st.text_input("Activation Key එක මෙතැනට ගහන්න:", type="password")
-        if st.button("Activate & Remember Device 🔓", use_container_width=True):
+        if st.button("Activate & Lock Access 🔓", use_container_width=True):
             user_key_clean = user_key.strip()
             if user_key_clean in VALID_KEYS:
-                # Browser LocalStorage එකේ Key එක ඡන්දය තබා ගැනීම (Permanently)
-                save_js = f"""
-                <script>
-                    localStorage.setItem('user_activation_key', '{user_key_clean}');
-                    const urlParams = new URLSearchParams(window.location.search);
-                    urlParams.set('auth', 'true');
-                    window.location.search = urlParams.toString();
-                </script>
-                """
-                components.html(save_js, height=0, width=0)
+                # Browser Cookie එකේ Key එක මාස 12 කට Save කිරීම
+                controller.set("app_activation_key", user_key_clean, max_age=31536000)
                 st.success("App එක සාර්ථකව Activate විය!")
+                st.rerun()
             else:
                 st.error("නොමැති හෝ වැරදි Activation Key එකකි!")
-
-if not st.session_state["authenticated"]:
-    show_activation_screen()
     st.stop()
 
 # Sidebar Account Status & Logout
@@ -92,14 +54,7 @@ with st.sidebar:
     st.markdown("### 👤 Account Status")
     st.success("STATUS: ACTIVATED ✔️")
     if st.button("Logout / Clear Device 🚪"):
-        clear_js = """
-        <script>
-            localStorage.removeItem('user_activation_key');
-            window.location.href = window.location.pathname;
-        </script>
-        """
-        components.html(clear_js, height=0, width=0)
-        st.session_state["authenticated"] = False
+        controller.remove("app_activation_key")
         st.rerun()
 
 # ---------------------------------------------------------
@@ -115,7 +70,6 @@ if "sl_pct" not in st.session_state:
 if "timeframe" not in st.session_state:
     st.session_state["timeframe"] = "15"
 
-# Live Data Fetcher
 def fetch_live_market_data(symbol):
     headers = {"User-Agent": "Mozilla/5.0"}
     try:
@@ -292,7 +246,7 @@ with tab1:
   </script>
 </div>
 """
-    components.html(ta_widget_code, height=440)
+    st.components.v1.html(ta_widget_code, height=440)
 
     st.markdown("### 📈 Live Interactive Chart")
     selected_tf = st.session_state["timeframe"]
@@ -317,7 +271,7 @@ new TradingView.widget({{
 </script>
 </div>
 """
-    components.html(chart_code, height=500)
+    st.components.v1.html(chart_code, height=500)
 
 with tab2:
     st.subheader("⚙️ Signal Configuration Controls")
