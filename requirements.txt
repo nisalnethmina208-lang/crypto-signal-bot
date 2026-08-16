@@ -3,3 +3,6 @@ pandas
 requests
 plotly
 flask
+streamlit
+requests
+extra-streamlit-components
