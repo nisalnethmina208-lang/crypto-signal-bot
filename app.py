@@ -1,150 +1,150 @@
-import streamlit as st
-import streamlit.components.v1 as components
-import requests
-import pandas as pd
-
-# Page Configuration
-st.set_page_config(page_title="Crypto Live Signal Center", layout="wide")
-
-TOP_COINS = [
-    "BTCUSDT", "ETHUSDT", "SOLUSDT", "BNBUSDT", "XRPUSDT", "ADAUSDT", "DOGEUSDT", 
-    "AVAXUSDT", "DOTUSDT", "LINKUSDT", "TRXUSDT", "NEARUSDT", "APTUSDT", "SUIUSDT", 
-    "PEPEUSDT", "FETUSDT", "INJUSDT", "FILUSDT", "OPUSDT", "ARBUSDT", "SHIBUSDT"
-]
-
-# Fetch Data from Binance Vision API / Bybit Backup (No IP Block)
-@st.cache_data(ttl=5)
-def get_live_signal(symbol="BTCUSDT", interval="15m"):
-    headers = {
-        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36'
+<!DOCTYPE html>
+<html lang="si">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Binance Signals VIP</title>
+  <style>
+    body {
+      font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+      margin: 0;
+      padding: 0;
+      background-color: #12161c;
+      color: #ffffff;
+    }
+    .container {
+      padding: 20px;
+      max-width: 500px;
+      margin: auto;
+    }
+    /* Lock Screen Style */
+    #lock-screen {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      height: 90vh;
+      text-align: center;
+    }
+    .lock-card {
+      background: #1e2329;
+      padding: 30px;
+      border-radius: 12px;
+      box-shadow: 0 4px 15px rgba(0,0,0,0.5);
+      width: 100%;
+      box-sizing: border-box;
+    }
+    input {
+      padding: 14px;
+      font-size: 16px;
+      margin: 15px 0;
+      border-radius: 8px;
+      border: 1px solid #474d57;
+      background: #2b313a;
+      color: #fff;
+      width: 100%;
+      box-sizing: border-box;
+      text-align: center;
+    }
+    button {
+      padding: 14px;
+      font-size: 16px;
+      background: #f0b90b;
+      color: #000;
+      border: none;
+      border-radius: 8px;
+      cursor: pointer;
+      font-weight: bold;
+      width: 100%;
+    }
+    button:hover {
+      background: #d9a307;
     }
     
-    df = None
-    error_msg = ""
-    
-    # 1. Primary Source: Binance Vision Official Public API
-    try:
-        url = f"https://data-api.binance.vision/api/v3/klines?symbol={symbol}&interval={interval}&limit=100"
-        res = requests.get(url, headers=headers, timeout=5)
-        if res.status_code == 200:
-            raw_data = res.json()
-            if isinstance(raw_data, list) and len(raw_data) > 0:
-                df = pd.DataFrame(raw_data, columns=['time', 'open', 'high', 'low', 'close', 'volume', '_1', '_2', '_3', '_4', '_5', '_6'])
-                df['close'] = df['close'].astype(float)
-    except Exception as e:
-        error_msg = str(e)
+    /* Main App Content Style */
+    #app-content {
+      display: none; /* Unlock වන තෙක් සඟවා ඇත */
+    }
+    .signal-card {
+      background: #1e2329;
+      padding: 15px 20px;
+      border-radius: 10px;
+      margin-top: 15px;
+      border-left: 5px solid #f0b90b;
+    }
+    .green-text { color: #0ecb81; }
+    .red-text { color: #f6465d; }
+  </style>
+</head>
+<body>
 
-    # 2. Secondary Source: Bybit Spot API
-    if df is None or df.empty:
-        try:
-            interval_map = {"1m": "1", "5m": "5", "15m": "15", "1h": "60", "4h": "240"}
-            bybit_tf = interval_map.get(interval, "15")
-            bybit_url = f"https://api.bybit.com/v5/market/kline?category=spot&symbol={symbol}&interval={bybit_tf}&limit=100"
-            res_bybit = requests.get(bybit_url, headers=headers, timeout=5).json()
-            if res_bybit.get("retCode") == 0 and res_bybit.get("result", {}).get("list"):
-                df = pd.DataFrame(res_bybit["result"]["list"], columns=['time', 'open', 'high', 'low', 'close', 'volume', 'turnover'])
-                df['close'] = df['close'].astype(float)
-                df = df.iloc[::-1].reset_index(drop=True)
-        except Exception:
-            pass
-
-    if df is None or df.empty:
-        return 0.0, "සම්ප්‍රේෂණ දෝෂයකි ⚠️", "#848e9c", "-", "-", f"Data Error: {error_msg}"
-
-    # Technical Indicators (EMA 20/50 & RSI 14)
-    df['ema20'] = df['close'].ewm(span=20, adjust=False).mean()
-    df['ema50'] = df['close'].ewm(span=50, adjust=False).mean()
-    
-    delta = df['close'].diff()
-    gain = (delta.where(delta > 0, 0)).rolling(window=14).mean()
-    loss = (-delta.where(delta < 0, 0)).rolling(window=14).mean()
-    rs = gain / loss
-    df['rsi'] = 100 - (100 / (1 + rs))
-    
-    latest = df.iloc[-1]
-    prev = df.iloc[-2]
-    price = latest['close']
-    
-    bullish = latest['ema20'] > latest['ema50']
-    ema_cross_up = (prev['ema20'] <= prev['ema50']) and (latest['ema20'] > latest['ema50'])
-    ema_cross_down = (prev['ema20'] >= prev['ema50']) and (latest['ema20'] < latest['ema50'])
-    
-    # Calculate Signal & Targets
-    if ema_cross_up or (bullish and latest['rsi'] < 60):
-        signal = "BUY SIGNAL (මාකට් එක UP වේ) 🟢"
-        color = "#0ecb81"
-        tp = round(price * 1.02, 4)
-        sl = round(price * 0.99, 4)
-        reason = f"Bullish Trend (EMA20 > EMA50) | RSI: {round(latest['rsi'], 1)}"
-    elif ema_cross_down or (not bullish and latest['rsi'] > 40):
-        signal = "SELL SIGNAL (මාකට් එක DOWN වේ) 🔴"
-        color = "#f6465d"
-        tp = round(price * 0.98, 4)
-        sl = round(price * 1.01, 4)
-        reason = f"Bearish Trend (EMA20 < EMA50) | RSI: {round(latest['rsi'], 1)}"
-    else:
-        signal = "HOLD / NEUTRAL (රඳවා තබාගන්න) 🟡"
-        color = "#f0b90b"
-        tp = "-"
-        sl = "-"
-        reason = f"Market Consolidating | RSI: {round(latest['rsi'], 1)}"
-        
-    return price, signal, color, tp, sl, reason
-
-# Header UI
-st.markdown("<h2 style='text-align: center; color: #F0B90B;'>⚡ Crypto Live Signal Center</h2>", unsafe_allow_html=True)
-
-# Search Bar Section
-search_query = st.text_input("🔍 Coin එකක් Search කරන්න (උදා: TRX, BTC, SOL):", "").strip().upper()
-
-filtered_coins = [c for c in TOP_COINS if search_query in c] if search_query else TOP_COINS
-if not filtered_coins:
-    filtered_coins = TOP_COINS
-
-col1, col2 = st.columns(2)
-with col1:
-    selected_symbol = st.selectbox("Coin එක තෝරන්න", filtered_coins, index=0)
-with col2:
-    timeframe = st.selectbox("Timeframe", ["1m", "5m", "15m", "1h", "4h"], index=2)
-
-price, signal, color, tp, sl, reason = get_live_signal(selected_symbol, timeframe)
-
-# Signal Display Box
-st.markdown(f"""
-<div style="background-color: #1e2329; border: 2px solid {color}; padding: 20px; border-radius: 12px; margin: 15px 0;">
-    <div style="display: flex; justify-content: space-between; align-items: center;">
-        <h2 style="color: {color}; margin: 0;">{signal}</h2>
-        <h3 style="color: #ffffff; margin: 0;">මිල: ${price:,.4f}</h3>
+  <!-- 1. Lock Screen (පළමු පාර විතරක් පෙනෙන කොටස) -->
+  <div id="lock-screen" class="container">
+    <div class="lock-card">
+      <h2>🔒 VIP Access Required</h2>
+      <p>Signals App එක Unlock කරගන්න ඔබට ලැබුණු Secret Key එක ඇතුළත් කරන්න:</p>
+      
+      <input type="password" id="secretKeyInput" placeholder="Enter Access Key Here">
+      <button onclick="unlockApp()">UNLOCK APP</button>
+      
+      <p id="error-msg" style="color: #f6465d; display: none; margin-top: 15px; font-size: 14px;">
+        ❌ වැරදි Access Key එකක්! නිවැරදි Key එක ඇතුළත් කරන්න.
+      </p>
     </div>
-    <p style="color: #848e9c; font-size: 14px; margin-top: 10px;"><b>හේතුව:</b> {reason}</p>
-    <hr style="border: 0.5px solid #2b313a; margin: 15px 0;">
-    <div style="display: flex; justify-content: space-around; text-align: center;">
-        <div>
-            <span style="color: #848e9c; font-size: 14px;">Take Profit (TP)</span><br>
-            <b style="color: #0ecb81; font-size: 22px;">${tp}</b>
-        </div>
-        <div>
-            <span style="color: #848e9c; font-size: 14px;">Stop Loss (SL)</span><br>
-            <b style="color: #f6465d; font-size: 22px;">${sl}</b>
-        </div>
-    </div>
-</div>
-""", unsafe_allow_html=True)
+  </div>
 
-# Live TradingView Chart Widget
-tradingview_html = f"""
-<div class="tradingview-widget-container" style="height:500px;width:100%;">
-  <div id="tradingview_chart" style="height:100%;width:100%;"></div>
-  <script type="text/javascript" src="https://s3.tradingview.com/tv.js"></script>
-  <script type="text/javascript">
-  new TradingView.widget({{
-      "autosize": true,
-      "symbol": "BINANCE:{selected_symbol}",
-      "interval": "{timeframe.replace('m', '') if 'm' in timeframe else timeframe.replace('h', '60')}",
-      "theme": "dark",
-      "container_id": "tradingview_chart"
-  }});
+  <!-- 2. Main App Content (Unlock වූ පසු හැමදාම පෙනෙන කොටස) -->
+  <div id="app-content" class="container">
+    <h1 style="color: #f0b90b;">🚀 Binance Signals VIP</h1>
+    <p>Welcome back! මෙන්න අද දවසේ Live Trading Signals:</p>
+
+    <!-- Signal Card 01 -->
+    <div class="signal-card">
+      <h3>BTC / USDT (<span class="green-text">LONG</span>)</h3>
+      <p><b>Entry Zone:</b> $62,500 - $63,000</p>
+      <p><b>Take Profit 1:</b> $64,500</p>
+      <p><b>Take Profit 2:</b> $66,000</p>
+      <p><b>Stop Loss:</b> <span class="red-text">$61,200</span></p>
+    </div>
+
+    <!-- Signal Card 02 -->
+    <div class="signal-card">
+      <h3>ETH / USDT (<span class="green-text">LONG</span>)</h3>
+      <p><b>Entry Zone:</b> $3,400 - $3,420</p>
+      <p><b>Take Profit 1:</b> $3,550</p>
+      <p><b>Stop Loss:</b> <span class="red-text">$3,320</span></p>
+    </div>
+    
+    <!-- තවත් Signals මෙතැනට එකතු කරන්න -->
+  </div>
+
+  <script>
+    // 🔑 ඔයා සල්ලි ගෙවන අයට දෙන Password / Secret Key එක මෙතැනට දාන්න:
+    const MY_SECRET_KEY = "BINANCE2026"; 
+
+    // Page එක ඕපන් වෙද්දීම කලින් එක පාරක් Unlock කරලද බලනවා
+    window.onload = function() {
+      if (localStorage.getItem("isAppUnlocked") === "true") {
+        showMainApp();
+      }
+    };
+
+    function unlockApp() {
+      const userEnteredKey = document.getElementById("secretKeyInput").value;
+      
+      if (userEnteredKey === MY_SECRET_KEY) {
+        // Phone එකේ Storage එකේ Permanently Save කරනවා "Unlocked" කියලා
+        localStorage.setItem("isAppUnlocked", "true");
+        showMainApp();
+      } else {
+        document.getElementById("error-msg").style.display = "block";
+      }
+    }
+
+    function showMainApp() {
+      document.getElementById("lock-screen").style.display = "none";
+      document.getElementById("app-content").style.display = "block";
+    }
   </script>
-</div>
-"""
-components.html(tradingview_html, height=500)
+</body>
+</html>
