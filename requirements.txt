@@ -2,5 +2,4 @@ streamlit
 pandas
 requests
 plotly
-streamlit
 flask
