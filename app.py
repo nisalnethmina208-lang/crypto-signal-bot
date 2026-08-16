@@ -1,9 +1,8 @@
 import streamlit as st
 import streamlit.components.v1 as components
 import requests
-import extra_streamlit_components as stx
 
-# Page Configuration (Browser Tab එකේ නම සහ Icon එක)
+# Page Configuration
 st.set_page_config(
     page_title="Binance Pro Signal Center", 
     page_icon="⚡", 
@@ -11,7 +10,7 @@ st.set_page_config(
 )
 
 # ---------------------------------------------------------
-# 🔑 ACTIVATION KEYS SYSTEM (ඔබට අවශ්‍ය Keys මෙතැනට එකතු කරන්න)
+# 🔑 ACTIVATION KEYS SYSTEM (URL / Query Parameter Based)
 # ---------------------------------------------------------
 VALID_KEYS = [
     "KEY-USER1-8899",
@@ -20,18 +19,18 @@ VALID_KEYS = [
     "MY-SECRET-PASS"
 ]
 
-# Cookie Manager (Browser එකේ Key එක මතක තබා ගැනීමට)
-cookie_manager = stx.get_cookie_manager()
-saved_key = cookie_manager.get(cookie="user_activation_key")
+# URL parameters පරීක්ෂා කිරීම
+query_params = st.query_params
+saved_key = query_params.get("key", None)
 
 if "activated" not in st.session_state:
     st.session_state["activated"] = False
 
-# Cookie එකේ valid key එකක් තිබේ නම් auto-unlock වේ
+# URL එකේ නිවැරදි Key එක ඇත්නම් Auto-Unlock වේ
 if saved_key in VALID_KEYS:
     st.session_state["activated"] = True
 
-# Activation Screen (පළමු වරට App එකට එන අයට පෙන්වන Lock Screen එක)
+# Activation Screen
 def show_activation_screen():
     st.markdown("""
     <div style="text-align: center; padding: 25px;">
@@ -43,36 +42,31 @@ def show_activation_screen():
     col1, col2, col3 = st.columns([1, 2, 1])
     with col2:
         user_key = st.text_input("Activation Key එක මෙතැනට ගහන්න:", type="password")
-        if st.button("Activate & Remember Me 🔓", use_container_width=True):
+        if st.button("Activate & Lock Access 🔓", use_container_width=True):
             user_key_clean = user_key.strip()
             if user_key_clean in VALID_KEYS:
-                # Browser memory එකේ key එක save කිරීම
-                cookie_manager.set("user_activation_key", user_key_clean, expires_at=None)
+                # Browser URL එකට Key එක එකතු කරයි (ලින්ක් එක Save වේ)
+                st.query_params["key"] = user_key_clean
                 st.session_state["activated"] = True
                 st.success("App එක සාර්ථකව Activate විය!")
                 st.rerun()
             else:
                 st.error("නොමැති හෝ වැරදි Activation Key එකකි!")
 
-# Key එක නිවැරදිව ලබා දී නැත්නම් App එක මෙතැනින් නවතී
 if not st.session_state["activated"]:
     show_activation_screen()
     st.stop()
 
-# Sidebar Account Status & Logout Option
+# Sidebar Account Status
 with st.sidebar:
     st.markdown("### 👤 Account Status")
     st.success("STATUS: ACTIVATED ✔️")
-    if st.button("Deactivate this Device 🚪"):
-        cookie_manager.delete("user_activation_key")
+    if st.button("Logout / Lock App 🚪"):
+        st.query_params.clear()
         st.session_state["activated"] = False
         st.rerun()
 
-# ---------------------------------------------------------
-# MAIN BINANCE APP LOGIC
-# ---------------------------------------------------------
-
-# Initialize Session State
+# Initialize Session State for App Options
 if "tp1_pct" not in st.session_state:
     st.session_state["tp1_pct"] = 2.0
 if "tp2_pct" not in st.session_state:
@@ -119,9 +113,7 @@ def fetch_live_market_data(symbol):
 
     return 0.0, 0.0, 0.0, 0.0
 
-# ---------------------------------------------------------
-# MAIN APP HEADER BANNER (App එකට එද්දිම උඩින්ම වැටෙන කොටස)
-# ---------------------------------------------------------
+# HEADER BANNER
 st.markdown("""
 <div style="background: linear-gradient(135deg, #1E2329 0%, #0B0E11 100%); padding: 20px; border-radius: 16px; border: 1px solid #F0B90B; margin-bottom: 20px; text-align: center; box-shadow: 0px 4px 15px rgba(240, 185, 11, 0.15);">
     <div style="display: flex; align-items: center; justify-content: center; gap: 10px;">
@@ -248,11 +240,10 @@ with tab1:
     st.markdown(signal_card_html, unsafe_allow_html=True)
     st.markdown("<br>", unsafe_allow_html=True)
 
-    # Technical Analysis Timeframe Mapping
     tf_current = st.session_state["timeframe"]
     ta_interval = f"{tf_current}m" if tf_current.isdigit() else "1D"
 
-    # TradingView Pro Technical Analysis Meter Widget
+    # Technical Analysis Meter
     st.markdown("### 📊 Live Technical Analysis Meter")
     ta_widget_code = f"""
 <div class="tradingview-widget-container">
@@ -273,7 +264,7 @@ with tab1:
 """
     components.html(ta_widget_code, height=440)
 
-    # TradingView Chart Widget
+    # TradingView Chart
     st.markdown("### 📈 Live Interactive Chart")
     selected_tf = st.session_state["timeframe"]
     chart_code = f"""
