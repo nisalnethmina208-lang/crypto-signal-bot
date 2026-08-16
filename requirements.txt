@@ -6,3 +6,8 @@ plotly
 streamlit
 requests
 streamlit-cookies-controller
+streamlit
+requests
+streamlit-cookies-controller
+extra-streamlit-components
+# (මීට අමතරව වෙනත් Library තියෙනවා නම් ඒවාත් මෙතනම තියෙන්න දෙන්න)
