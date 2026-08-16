@@ -1,6 +1,7 @@
 import streamlit as st
 import streamlit.components.v1 as components
 import requests
+import extra_streamlit_components as stx
 
 # Page Configuration (Browser Tab එකේ නම සහ Icon එක)
 st.set_page_config(
@@ -8,6 +9,68 @@ st.set_page_config(
     page_icon="⚡", 
     layout="centered"
 )
+
+# ---------------------------------------------------------
+# 🔑 ACTIVATION KEYS SYSTEM (ඔබට අවශ්‍ය Keys මෙතැනට එකතු කරන්න)
+# ---------------------------------------------------------
+VALID_KEYS = [
+    "KEY-USER1-8899",
+    "KEY-USER2-7711",
+    "KEY-VIP-TRADER",
+    "MY-SECRET-PASS"
+]
+
+# Cookie Manager (Browser එකේ Key එක මතක තබා ගැනීමට)
+cookie_manager = stx.get_cookie_manager()
+saved_key = cookie_manager.get(cookie="user_activation_key")
+
+if "activated" not in st.session_state:
+    st.session_state["activated"] = False
+
+# Cookie එකේ valid key එකක් තිබේ නම් auto-unlock වේ
+if saved_key in VALID_KEYS:
+    st.session_state["activated"] = True
+
+# Activation Screen (පළමු වරට App එකට එන අයට පෙන්වන Lock Screen එක)
+def show_activation_screen():
+    st.markdown("""
+    <div style="text-align: center; padding: 25px;">
+        <h2 style="color: #F0B90B;">🔐 APP ACTIVATION REQUIRED</h2>
+        <p style="color: #848E9C;">ඔබට ලැබුණු Activation Key එක ඇතුළත් කර App එක Unlock කරගන්න.</p>
+    </div>
+    """, unsafe_allow_html=True)
+    
+    col1, col2, col3 = st.columns([1, 2, 1])
+    with col2:
+        user_key = st.text_input("Activation Key එක මෙතැනට ගහන්න:", type="password")
+        if st.button("Activate & Remember Me 🔓", use_container_width=True):
+            user_key_clean = user_key.strip()
+            if user_key_clean in VALID_KEYS:
+                # Browser memory එකේ key එක save කිරීම
+                cookie_manager.set("user_activation_key", user_key_clean, expires_at=None)
+                st.session_state["activated"] = True
+                st.success("App එක සාර්ථකව Activate විය!")
+                st.rerun()
+            else:
+                st.error("නොමැති හෝ වැරදි Activation Key එකකි!")
+
+# Key එක නිවැරදිව ලබා දී නැත්නම් App එක මෙතැනින් නවතී
+if not st.session_state["activated"]:
+    show_activation_screen()
+    st.stop()
+
+# Sidebar Account Status & Logout Option
+with st.sidebar:
+    st.markdown("### 👤 Account Status")
+    st.success("STATUS: ACTIVATED ✔️")
+    if st.button("Deactivate this Device 🚪"):
+        cookie_manager.delete("user_activation_key")
+        st.session_state["activated"] = False
+        st.rerun()
+
+# ---------------------------------------------------------
+# MAIN BINANCE APP LOGIC
+# ---------------------------------------------------------
 
 # Initialize Session State
 if "tp1_pct" not in st.session_state:
@@ -56,7 +119,6 @@ def fetch_live_market_data(symbol):
 
     return 0.0, 0.0, 0.0, 0.0
 
-
 # ---------------------------------------------------------
 # MAIN APP HEADER BANNER (App එකට එද්දිම උඩින්ම වැටෙන කොටස)
 # ---------------------------------------------------------
@@ -72,7 +134,6 @@ st.markdown("""
     </div>
 </div>
 """, unsafe_allow_html=True)
-
 
 # Interface Tabs
 tab1, tab2 = st.tabs(["📊 Live Trading Center", "⚙️ Signal Settings"])
@@ -187,6 +248,10 @@ with tab1:
     st.markdown(signal_card_html, unsafe_allow_html=True)
     st.markdown("<br>", unsafe_allow_html=True)
 
+    # Technical Analysis Timeframe Mapping
+    tf_current = st.session_state["timeframe"]
+    ta_interval = f"{tf_current}m" if tf_current.isdigit() else "1D"
+
     # TradingView Pro Technical Analysis Meter Widget
     st.markdown("### 📊 Live Technical Analysis Meter")
     ta_widget_code = f"""
@@ -194,7 +259,7 @@ with tab1:
   <div class="tradingview-widget-container__widget"></div>
   <script type="text/javascript" src="https://s3.tradingview.com/external-embedding/embed-widget-technical-analysis.js" async>
   {{
-  "interval": "{st.session_state['timeframe']}m" if "{st.session_state['timeframe']}".isdigit() else "1D",
+  "interval": "{ta_interval}",
   "width": "100%",
   "isTransparent": false,
   "height": 430,
