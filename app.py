@@ -1,183 +1,174 @@
 import streamlit as st
 import requests
+from streamlit_tradingview import st_tradingview
 
 # Page Configuration
 st.set_page_config(
-    page_title="Binance Live Trading Center",
+    page_title="Binance Pro Trading Center",
     page_icon="📈",
     layout="wide"
 )
 
-# Dark Theme & Custom CSS
+# Dark Theme & Custom CSS (Binance Style)
 st.markdown("""
     <style>
     .stApp {
         background-color: #121418;
         color: #FFFFFF;
     }
+    .main-title {
+        font-size: 28px;
+        font-weight: bold;
+        color: #F0B90B;
+        margin-bottom: 10px;
+    }
     .trading-card {
         background-color: #1E2329;
         border: 1px solid #2B313A;
         padding: 20px;
         border-radius: 12px;
-        margin-top: 10px;
+        margin-bottom: 20px;
     }
     .ticker-title {
         font-size: 32px;
         font-weight: bold;
-        color: #F0B90B;
+        color: #F0B90B !important;
+    }
+    .binance-spot {
+        color: #848E9C;
+        font-size: 12px;
+        text-transform: uppercase;
     }
     .buy-btn {
         background-color: #0ECB81;
         color: white;
-        padding: 8px 20px;
+        padding: 10px 24px;
         font-size: 18px;
         font-weight: bold;
         border-radius: 8px;
         text-align: center;
         float: right;
     }
-    .sell-btn {
-        background-color: #F6465D;
-        color: white;
-        padding: 8px 20px;
-        font-size: 18px;
-        font-weight: bold;
-        border-radius: 8px;
-        text-align: center;
-        float: right;
-    }
-    .stat-label {
-        color: #848E9C;
-        font-size: 13px;
-    }
-    .stat-val {
-        color: #FFFFFF;
-        font-size: 18px;
+    .trend-up {
+        color: #0ECB81 !important;
         font-weight: bold;
     }
-    .tp-card {
-        background-color: #172622;
-        border: 1px solid #0ECB81;
-        padding: 15px;
-        border-radius: 10px;
-        text-align: center;
-    }
-    .sl-card {
-        background-color: #26191D;
-        border: 1px solid #F6465D;
-        padding: 15px;
-        border-radius: 10px;
-        text-align: center;
+    .stat-label { color: #848E9C; font-size: 13px; }
+    .stat-val { color: #FFFFFF; font-size: 16px; font-weight: bold; }
+
+    /* Notepad Styling */
+    .stTextArea textarea {
+        background-color: #1E2329 !important;
+        color: #FFFFFF !important;
+        border: 1px solid #2B313A !important;
     }
     </style>
 """, unsafe_allow_html=True)
 
-# Main Title
-st.markdown("<h2 style='color: #F0B90B;'>📊 Binance Live Trading Center</h2>", unsafe_allow_html=True)
+# Function to fetch live data from CoinGecko (Reliable in SL)
+@st.cache_data(ttl=300)
+def get_coin_data(coin_id):
+    url = f"https://api.coingecko.com/api/v3/simple/price?ids={coin_id}&vs_currencies=usd&include_24hr_change=true&include_24hr_high=true&include_24hr_low=true"
+    try:
+        response = requests.get(url, timeout=10)
+        return response.json()
+    except:
+        return None
 
-# Popular Coins mapping with CoinGecko IDs for reliable fetching
-coins_data = {
-    "BTCUSDT": {"id": "bitcoin", "name": "BTC/USDT"},
-    "ETHUSDT": {"id": "ethereum", "name": "ETH/USDT"},
-    "BNBUSDT": {"id": "binancecoin", "name": "BNB/USDT"},
-    "SOLUSDT": {"id": "solana", "name": "SOL/USDT"},
-    "XRPUSDT": {"id": "ripple", "name": "XRP/USDT"},
-    "ADAUSDT": {"id": "cardano", "name": "ADA/USDT"},
-    "DOGEUSDT": {"id": "dogecoin", "name": "DOGE/USDT"},
-    "DOTUSDT": {"id": "polkadot", "name": "DOT/USDT"},
-    "MATICUSDT": {"id": "polygon", "name": "MATIC/USDT"},
-    "LINKUSDT": {"id": "chainlink", "name": "LINK/USDT"}
-}
-
-selected_coin = st.selectbox("Coin Pair එක තෝරන්න:", list(coins_data.keys()))
-
-# Fetch live market data securely
-coin_id = coins_data[selected_coin]["id"]
-url = f"https://api.coingecko.com/api/v3/simple/price?ids={coin_id}&vs_currencies=usd&include_24hr_change=true&include_24hr_high=true&include_24hr_low=true"
-
-try:
-    response = requests.get(url, timeout=10)
-    data = response.json()
+# --- Sidebar (Settings) ---
+with st.sidebar:
+    st.image("https://cryptologos.cc/logos/binance-coin-bnb-logo.png?v=032", width=50)
+    st.markdown("## ⚙️ Binance Settings")
     
-    if coin_id in data:
-        coin_info = data[coin_id]
-        last_price = float(coin_info['usd'])
-        price_change_pct = float(coin_info.get('usd_24h_change', 0.0))
-        high_24h = last_price * (1 + abs(price_change_pct)/100 * 0.5) # Estimated high/low if not provided directly
-        low_24h = last_price * (1 - abs(price_change_pct)/100 * 0.5)
-        
-        # Trend and Action
-        is_uptrend = price_change_pct >= 0
-        trend_text = "Uptrend Structure (UP)" if is_uptrend else "Downtrend Structure (DOWN)"
-        trend_color = "#0ECB81" if is_uptrend else "#F6465D"
-        action_type = "BUY" if is_uptrend else "SELL"
-        btn_class = "buy-btn" if is_uptrend else "sell-btn"
+    # Coin Selection
+    coin_options = {
+        "BTC/USDT": "bitcoin",
+        "ETH/USDT": "ethereum",
+        "BNB/USDT": "binancecoin",
+        "SOL/USDT": "solana",
+        "XRP/USDT": "ripple",
+        "ADA/USDT": "cardano"
+    }
+    selected_coin_display = st.selectbox("Select Market:", list(coin_options.keys()), index=0)
+    coin_id = coin_options[selected_coin_display]
+    
+    # Chart Settings
+    chart_interval = st.selectbox("Chart Interval:", ["1m", "5m", "15m", "1H", "4H", "1D"], index=2)
+    
+    st.markdown("---")
+    st.write("Pro Features Enabled")
 
-        # Targets Calculation
-        if is_uptrend:
-            tp1 = last_price * 1.02
-            tp2 = last_price * 1.04
-            sl = last_price * 0.98
-        else:
-            tp1 = last_price * 0.98
-            tp2 = last_price * 0.96
-            sl = last_price * 1.02
+# --- Main App Layout ---
+st.markdown(f'<p class="main-title">📈 Binance Live Trading Center - {selected_coin_display}</p>', unsafe_allow_html=True)
 
-        # Display Card
-        st.markdown(f"""
-            <div class="trading-card">
-                <p style="color: #848E9C; font-size: 12px; margin-bottom: -5px;">BINANCE SPOT</p>
-                <table width="100%">
-                    <tr>
-                        <td><span class="ticker-title">{selected_coin}</span></td>
-                        <td align="right"><div class="{btn_class}">{action_type} 📈</div></td>
-                    </tr>
-                </table>
-                <p style="color: {trend_color}; font-weight: bold; margin-top: 5px;">● {trend_text}</p>
-                <hr style="border-color: #2B313A; margin: 15px 0;">
-                
-                <table width="100%">
-                    <tr>
-                        <td><div class="stat-label">LIVE PRICE</div><div class="stat-val">${last_price:,.4f}</div></td>
-                        <td><div class="stat-label">24H CHANGE</div><div class="stat-val" style="color: {trend_color};">{price_change_pct:+.2f}%</div></td>
-                        <td><div class="stat-label">EST. HIGH</div><div class="stat-val">${high_24h:,.4f}</div></td>
-                        <td><div class="stat-label">EST. LOW</div><div class="stat-val">${low_24h:,.4f}</div></td>
-                    </tr>
-                </table>
-            </div>
-        """, unsafe_allow_html=True)
+# Top Row (Ticker and Buy Button)
+col_top1, col_top2 = st.columns([3, 1])
+with col_top1:
+    st.markdown(f'<p class="binance-spot">BINANCE SPOT</p>', unsafe_allow_html=True)
+    st.markdown(f'<p class="ticker-title">{selected_coin_display}</p>', unsafe_allow_html=True)
+with col_top2:
+    st.markdown('<br>', unsafe_allow_html=True)
+    st.markdown('<div class="buy-btn">BUY 🚀</div>', unsafe_allow_html=True)
 
-        st.markdown("<br>", unsafe_allow_html=True)
+# Fetch and Display Live Stats
+data = get_coin_data(coin_id)
 
-        # TP1, TP2, SL Cards
-        tp_col1, tp_col2, sl_col = st.columns(3)
+if data and coin_id in data:
+    price_data = data[coin_id]
+    last_price = price_data.get('usd', 0.0)
+    change_24h = price_data.get('usd_24h_change', 0.0)
+    high_24h = price_data.get('usd_24h_high', 0.0)
+    low_24h = price_data.get('usd_24h_low', 0.0)
+    
+    # Define Trend Color
+    trend_class = "trend-up" if change_24h >= 0 else "trend-down"
+    change_icon = "▲" if change_24h >= 0 else "▼"
 
-        with tp_col1:
-            st.markdown(f"""
-                <div class="tp-card">
-                    <p style="color: #0ECB81; font-weight: bold; margin-bottom: 5px;">🎯 TP 1 (+2.0%)</p>
-                    <h3 style="color: #FFFFFF; margin: 0;">${tp1:,.4f}</h3>
-                </div>
-            """, unsafe_allow_html=True)
+    # Stats Card
+    st.markdown(f"""
+        <div class="trading-card">
+            <table width="100%">
+                <tr>
+                    <td><div class="stat-label">LIVE PRICE</div><div class="stat-val">${last_price:,.2f}</div></td>
+                    <td><div class="stat-label">24H CHANGE</div><div class="stat-val {trend_class}">{change_icon} {change_24h:,.2f}%</div></td>
+                    <td><div class="stat-label">24H HIGH</div><div class="stat-val">${high_24h:,.2f}</div></td>
+                    <td><div class="stat-label">24H LOW</div><div class="stat-val">${low_24h:,.2f}</div></td>
+                </tr>
+            </table>
+        </div>
+    """, unsafe_allow_html=True)
+else:
+    st.error("දත්ත ලබා ගැනීමේ දෝෂයක්! අන්තර්ජාලය පරීක්ෂා කරන්න.")
 
-        with tp_col2:
-            st.markdown(f"""
-                <div class="tp-card">
-                    <p style="color: #0ECB81; font-weight: bold; margin-bottom: 5px;">🎯 TP 2 (+4.0%)</p>
-                    <h3 style="color: #FFFFFF; margin: 0;">${tp2:,.4f}</h3>
-                </div>
-            """, unsafe_allow_html=True)
+# --- Interactive Chart (Binance-like) ---
+# This replaces the error message and the old static image
+st.subheader("📊 Live Price Chart")
+tv_symbol = f"BINANCE:{selected_coin_display.replace('/', '')}"
+st_tradingview(
+    symbol=tv_symbol,
+    interval=chart_interval.replace('H', '60').replace('D', 'D'), # Convert to TV format
+    theme="Dark",
+    height=600,
+    width="100%"
+)
 
-        with sl_col:
-            st.markdown(f"""
-                <div class="sl-card">
-                    <p style="color: #F6465D; font-weight: bold; margin-bottom: 5px;">🛡️ SL (-2.0%)</p>
-                    <h3 style="color: #FFFFFF; margin: 0;">${sl:,.4f}</h3>
-                </div>
-            """, unsafe_allow_html=True)
-    else:
-        st.error("දත්ත සොයා ගැනීමට නොහැකි විය.")
+st.markdown("---")
 
-except Exception as e:
-    st.error(f"දත්ත ලබා ගැනීමේ දෝෂයක් මතු විය: {e}")
+# --- Notepad (Lower Section) ---
+st.subheader("📝 Trading Notepad")
+st.write("ඔබගේ වෙළඳ සැලසුම් හෝ සටහන් මෙහි ලියා තබා ගන්න.")
+
+# Use session state to keep notes persistent
+if 'notepad_content' not in st.session_state:
+    st.session_state.notepad_content = ""
+
+note_text = st.text_area("Notes Area", value=st.session_state.notepad_content, height=150, label_visibility="collapsed")
+
+if st.button("Save Notes"):
+    st.session_state.notepad_content = note_text
+    st.success("Notes saved!")
+
+# Optional: Clear Button
+if st.button("Clear Notes"):
+    st.session_state.notepad_content = ""
+    st.rerun()
