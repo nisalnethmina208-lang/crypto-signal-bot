@@ -20,10 +20,13 @@ VALID_KEYS = [
     "MY-SECRET-PASS"
 ]
 
-# Session State සහ Cookie එක හරහා පරිශීලකයා පරීක්ෂා කිරීම
+# Query Parameters හෝ Cookies මඟින් Login වී ඇත්දැයි පරීක්ෂා කිරීම
+query_params = st.query_params
+url_key = query_params.get("key", None)
+saved_key = controller.get("app_activation_key")
+
 if "is_authenticated" not in st.session_state:
-    saved_key = controller.get("app_activation_key")
-    if saved_key in VALID_KEYS:
+    if url_key in VALID_KEYS or saved_key in VALID_KEYS:
         st.session_state["is_authenticated"] = True
     else:
         st.session_state["is_authenticated"] = False
@@ -44,6 +47,7 @@ if not st.session_state["is_authenticated"]:
             user_key_clean = user_key.strip()
             if user_key_clean in VALID_KEYS:
                 controller.set("app_activation_key", user_key_clean, max_age=31536000)
+                st.query_params["key"] = user_key_clean  # URL එකට Key එක දමා permanently lock කිරීම
                 st.session_state["is_authenticated"] = True
                 st.success("App එක සාර්ථකව Activate විය!")
                 st.rerun()
@@ -57,6 +61,7 @@ with st.sidebar:
     st.success("STATUS: ACTIVATED ✔️")
     if st.button("Logout / Clear Device 🚪"):
         controller.remove("app_activation_key")
+        st.query_params.clear()
         st.session_state["is_authenticated"] = False
         st.rerun()
 
@@ -164,7 +169,6 @@ with tab1:
         tp1 = tp2 = sl = 0.0
         tp_l1, tp_l2, sl_l = "TP 1", "TP 2", "SL"
 
-    # TP සහ SL සමඟ සම්පූර්ණ කාඩ් එක
     signal_card_html = f"""
 <div style="background: #181A20; padding: 22px; border-radius: 14px; border: 1px solid #2B313A; color: white;">
     <div style="display: flex; justify-content: space-between; align-items: center;">
