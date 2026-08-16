@@ -2,8 +2,12 @@ import streamlit as st
 import streamlit.components.v1 as components
 import requests
 
-# Page Configuration
-st.set_page_config(page_title="Binance Pro Signal Center", layout="centered")
+# Page Configuration (Browser Tab එකේ නම සහ Icon එක)
+st.set_page_config(
+    page_title="Binance Pro Signal Center", 
+    page_icon="⚡", 
+    layout="centered"
+)
 
 # Initialize Session State
 if "tp1_pct" not in st.session_state:
@@ -19,7 +23,7 @@ if "timeframe" not in st.session_state:
 def fetch_live_market_data(symbol):
     headers = {"User-Agent": "Mozilla/5.0"}
     
-    # 1. Try Binance Global API
+    # 1. Binance Global API
     try:
         url = f"https://api.binance.com/api/v3/ticker/24hr?symbol={symbol}"
         res = requests.get(url, headers=headers, timeout=3)
@@ -29,7 +33,7 @@ def fetch_live_market_data(symbol):
     except Exception:
         pass
 
-    # 2. Fallback to Binance US API
+    # 2. Binance US API
     try:
         url = f"https://api.binance.us/api/v3/ticker/24hr?symbol={symbol}"
         res = requests.get(url, headers=headers, timeout=3)
@@ -39,7 +43,7 @@ def fetch_live_market_data(symbol):
     except Exception:
         pass
 
-    # 3. Fallback to CryptoCompare API (100% Guaranteed Global Access)
+    # 3. CryptoCompare API
     try:
         coin = symbol.replace("USDT", "")
         url = f"https://min-api.cryptocompare.com/data/pricemultifull?fsyms={coin}&tsyms=USDT"
@@ -52,13 +56,28 @@ def fetch_live_market_data(symbol):
 
     return 0.0, 0.0, 0.0, 0.0
 
+
+# ---------------------------------------------------------
+# MAIN APP HEADER BANNER (App එකට එද්දිම උඩින්ම වැටෙන කොටස)
+# ---------------------------------------------------------
+st.markdown("""
+<div style="background: linear-gradient(135deg, #1E2329 0%, #0B0E11 100%); padding: 20px; border-radius: 16px; border: 1px solid #F0B90B; margin-bottom: 20px; text-align: center; box-shadow: 0px 4px 15px rgba(240, 185, 11, 0.15);">
+    <div style="display: flex; align-items: center; justify-content: center; gap: 10px;">
+        <span style="font-size: 32px;">⚡</span>
+        <h1 style="color: #F0B90B; margin: 0; font-size: 26px; font-weight: 800; letter-spacing: 1px; text-transform: uppercase;">BINANCE PRO SIGNAL CENTER</h1>
+    </div>
+    <p style="color: #848E9C; margin: 6px 0 0 0; font-size: 13px; font-weight: 500;">Real-Time Crypto Signals & Technical Analysis Dashboard</p>
+    <div style="margin-top: 10px;">
+        <span style="background-color: rgba(14, 203, 129, 0.2); color: #0ECB81; padding: 4px 12px; border-radius: 20px; font-size: 11px; font-weight: bold; border: 1px solid #0ECB81;">● LIVE API CONNECTED</span>
+    </div>
+</div>
+""", unsafe_allow_html=True)
+
+
 # Interface Tabs
 tab1, tab2 = st.tabs(["📊 Live Trading Center", "⚙️ Signal Settings"])
 
 with tab1:
-    st.markdown("<h2 style='color: #F0B90B; margin-bottom: 0px;'>⚡ BINANCE PRO SIGNAL CENTER</h2>", unsafe_allow_html=True)
-    st.caption("Real-Time Technical Analysis & Automated Signals")
-    
     popular_coins = [
         "BTC/USDT", "ETH/USDT", "SOL/USDT", "BNB/USDT", "XRP/USDT",
         "APT/USDT", "ADA/USDT", "DOGE/USDT", "PEPE/USDT", "AVAX/USDT",
