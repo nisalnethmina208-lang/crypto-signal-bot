@@ -5,6 +5,16 @@ import requests
 # Page Configuration
 st.set_page_config(page_title="Binance Signal Center", layout="centered")
 
+# Initialize Session State Defaults for Settings
+if "tp1_pct" not in st.session_state:
+    st.session_state["tp1_pct"] = 2.0
+if "tp2_pct" not in st.session_state:
+    st.session_state["tp2_pct"] = 4.0
+if "sl_pct" not in st.session_state:
+    st.session_state["sl_pct"] = 2.0
+if "timeframe" not in st.session_state:
+    st.session_state["timeframe"] = "15"
+
 # Tabs
 tab1, tab2 = st.tabs(["📊 Signals & Market", "⚙️ Settings"])
 
@@ -74,25 +84,32 @@ with tab1:
         trend_color = "#E55656"
         is_buy = False
 
-    # TP / SL Targets Calculation Logic
+    # Dynamic TP / SL Targets based on Settings
+    tp1_ratio = st.session_state["tp1_pct"] / 100.0
+    tp2_ratio = st.session_state["tp2_pct"] / 100.0
+    sl_ratio = st.session_state["sl_pct"] / 100.0
+
     if current_price > 0:
         if is_buy:
-            tp1 = current_price * 1.02
-            tp2 = current_price * 1.04
-            sl = current_price * 0.98
-            tp_label_1, tp_label_2, sl_label = "🎯 TP 1 (+2%)", "🎯 TP 2 (+4%)", "🛡️ SL (-2%)"
+            tp1 = current_price * (1.0 + tp1_ratio)
+            tp2 = current_price * (1.0 + tp2_ratio)
+            sl = current_price * (1.0 - sl_ratio)
+            tp_label_1 = f"🎯 TP 1 (+{st.session_state['tp1_pct']}%)"
+            tp_label_2 = f"🎯 TP 2 (+{st.session_state['tp2_pct']}%)"
+            sl_label = f"🛡️ SL (-{st.session_state['sl_pct']}%)"
         else:
-            tp1 = current_price * 0.98
-            tp2 = current_price * 0.96
-            sl = current_price * 1.02
-            tp_label_1, tp_label_2, sl_label = "🎯 TP 1 (-2%)", "🎯 TP 2 (-4%)", "🛡️ SL (+2%)"
+            tp1 = current_price * (1.0 - tp1_ratio)
+            tp2 = current_price * (1.0 - tp2_ratio)
+            sl = current_price * (1.0 + sl_ratio)
+            tp_label_1 = f"🎯 TP 1 (-{st.session_state['tp1_pct']}%)"
+            tp_label_2 = f"🎯 TP 2 (-{st.session_state['tp2_pct']}%)"
+            sl_label = f"🛡️ SL (+{st.session_state['sl_pct']}%)"
     else:
         tp1 = tp2 = sl = 0.0
         tp_label_1 = tp_label_2 = sl_label = "-"
 
     st.markdown("---")
 
-    # හිස්තැන් ඉවත් කළ HTML Code එක
     signal_card_html = f"""
 <div style="background-color: #1E2329; padding: 20px; border-radius: 12px; border: 1px solid #2B313A; color: white;">
 <div style="display: flex; justify-content: space-between; align-items: center;">
@@ -143,6 +160,7 @@ with tab1:
 
     st.markdown("<br>", unsafe_allow_html=True)
 
+    selected_tf = st.session_state["timeframe"]
     tradingview_code = f"""
 <div class="tradingview-widget-container" style="height:100%;width:100%">
 <div id="tradingview_chart" style="height:450px;width:100%"></div>
@@ -151,7 +169,7 @@ with tab1:
 new TradingView.widget({{
 "autosize": true,
 "symbol": "BINANCE:{tv_symbol}",
-"interval": "15",
+"interval": "{selected_tf}",
 "timezone": "Etc/UTC",
 "theme": "dark",
 "style": "1",
@@ -166,6 +184,31 @@ new TradingView.widget({{
 """
     components.html(tradingview_code, height=470)
 
+# ----------------- SETTINGS TAB -----------------
 with tab2:
-    st.subheader("Settings")
-    st.write("Settings configuration controls.")
+    st.subheader("⚙️ Trading Signal Settings")
+    st.write("මෙතැනින් ඔබගේ Target percentages සහ Chart timeframe සකස් කරන්න.")
+
+    st.markdown("### 🎯 Risk Management Targets (%)")
+    col_s1, col_s2, col_s3 = st.columns(3)
+    with col_s1:
+        st.session_state["tp1_pct"] = st.number_input("TP 1 (%)", min_value=0.5, max_value=20.0, value=st.session_state["tp1_pct"], step=0.5)
+    with col_s2:
+        st.session_state["tp2_pct"] = st.number_input("TP 2 (%)", min_value=1.0, max_value=30.0, value=st.session_state["tp2_pct"], step=0.5)
+    with col_s3:
+        st.session_state["sl_pct"] = st.number_input("Stop Loss (%)", min_value=0.5, max_value=15.0, value=st.session_state["sl_pct"], step=0.5)
+
+    st.markdown("---")
+    st.markdown("### ⏱️ Default Chart Timeframe")
+    tf_options = {"1 Min": "1", "5 Min": "5", "15 Min": "15", "1 Hour": "60", "4 Hour": "240", "1 Day": "D"}
+    current_tf_label = [k for k, v in tf_options.items() if v == st.session_state["timeframe"]][0]
+    selected_tf_label = st.selectbox("Chart Timeframe එක තෝරන්න:", list(tf_options.keys()), index=list(tf_options.keys()).index(current_tf_label))
+    st.session_state["timeframe"] = tf_options[selected_tf_label]
+
+    st.markdown("---")
+    st.markdown("### 🔔 Telegram Signal Notifications")
+    enable_tg = st.checkbox("Telegram Alerts සක්‍රිය කරන්න")
+    if enable_tg:
+        st.text_input("Telegram Bot Token:", type="password")
+        st.text_input("Telegram Chat ID:")
+        st.button("Test Connection 🚀")
