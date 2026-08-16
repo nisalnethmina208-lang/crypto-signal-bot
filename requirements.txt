@@ -3,3 +3,6 @@ streamlit
 requests
 pandas
 plotly
+streamlit
+requests
+streamlit-cookies-controller
