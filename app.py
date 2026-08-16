@@ -130,7 +130,6 @@ with tab1:
 
     tv_symbol = selected_pair.replace("/", "")
 
-    # මෙතැනදී නිවැරදිව values 4 ක් ලබාගැනීම සිදුකර ඇත
     current_price, price_change_pct, high_price, low_price = fetch_live_market_data(tv_symbol)
 
     if price_change_pct >= 2.0:
@@ -163,41 +162,57 @@ with tab1:
             tp_l1, tp_l2, sl_l = f"TP 1 (-{st.session_state['tp1_pct']}%)", f"TP 2 (-{st.session_state['tp2_pct']}%)", f"SL (+{st.session_state['sl_pct']}%)"
     else:
         tp1 = tp2 = sl = 0.0
-        tp_l1 = tp_l2 = sl_l = "-"
+        tp_l1, tp_l2, sl_l = "TP 1", "TP 2", "SL"
 
+    # TP සහ SL සමඟ සම්පූර්ණ කාඩ් එක
     signal_card_html = f"""
 <div style="background: #181A20; padding: 22px; border-radius: 14px; border: 1px solid #2B313A; color: white;">
-<div style="display: flex; justify-content: space-between; align-items: center;">
-<div>
-<span style="color: #848E9C; font-size: 12px; font-weight: 600;">BINANCE SPOT</span>
-<h2 style="margin: 2px 0 0 0; color: #F0B90B; font-size: 30px; font-weight: 800;">{selected_pair}</h2>
-<p style="margin: 4px 0 0 0; color: {trend_color}; font-weight: 600; font-size: 13px;">● {trend_text}</p>
-</div>
-<div>
-<div style="background: {signal_bg}; color: white; padding: 12px 22px; border-radius: 10px; font-weight: 800; font-size: 18px; text-align: center;">
-{signal_badge}
-</div>
-</div>
-</div>
-<hr style="border: 0.5px solid #2B313A; margin: 18px 0;">
-<div style="display: flex; justify-content: space-between; text-align: center;">
-<div>
-<span style="color: #848E9C; font-size: 11px;">LIVE PRICE</span>
-<h3 style="margin: 4px 0 0 0; font-size: 18px; font-weight: 700;">${current_price:,.4f}</h3>
-</div>
-<div>
-<span style="color: #848E9C; font-size: 11px;">24H CHANGE</span>
-<h3 style="margin: 4px 0 0 0; color: {trend_color}; font-size: 18px; font-weight: 700;">{price_change_pct:+.2f}%</h3>
-</div>
-<div>
-<span style="color: #848E9C; font-size: 11px;">24H HIGH</span>
-<h3 style="margin: 4px 0 0 0; font-size: 18px; font-weight: 700;">${high_price:,.4f}</h3>
-</div>
-<div>
-<span style="color: #848E9C; font-size: 11px;">24H LOW</span>
-<h3 style="margin: 4px 0 0 0; font-size: 18px; font-weight: 700;">${low_price:,.4f}</h3>
-</div>
-</div>
+    <div style="display: flex; justify-content: space-between; align-items: center;">
+        <div>
+            <span style="color: #848E9C; font-size: 12px; font-weight: 600;">BINANCE SPOT</span>
+            <h2 style="margin: 2px 0 0 0; color: #F0B90B; font-size: 30px; font-weight: 800;">{selected_pair}</h2>
+            <p style="margin: 4px 0 0 0; color: {trend_color}; font-weight: 600; font-size: 13px;">● {trend_text}</p>
+        </div>
+        <div>
+            <div style="background: {signal_bg}; color: white; padding: 12px 22px; border-radius: 10px; font-weight: 800; font-size: 18px; text-align: center;">
+                {signal_badge}
+            </div>
+        </div>
+    </div>
+    <hr style="border: 0.5px solid #2B313A; margin: 18px 0;">
+    <div style="display: flex; justify-content: space-between; text-align: center;">
+        <div>
+            <span style="color: #848E9C; font-size: 11px;">LIVE PRICE</span>
+            <h3 style="margin: 4px 0 0 0; font-size: 16px; font-weight: 700;">${current_price:,.2f}</h3>
+        </div>
+        <div>
+            <span style="color: #848E9C; font-size: 11px;">24H CHANGE</span>
+            <h3 style="margin: 4px 0 0 0; color: {trend_color}; font-size: 16px; font-weight: 700;">{price_change_pct:+.2f}%</h3>
+        </div>
+        <div>
+            <span style="color: #848E9C; font-size: 11px;">24H HIGH</span>
+            <h3 style="margin: 4px 0 0 0; font-size: 16px; font-weight: 700;">${high_price:,.2f}</h3>
+        </div>
+        <div>
+            <span style="color: #848E9C; font-size: 11px;">24H LOW</span>
+            <h3 style="margin: 4px 0 0 0; font-size: 16px; font-weight: 700;">${low_price:,.2f}</h3>
+        </div>
+    </div>
+    <hr style="border: 0.5px solid #2B313A; margin: 18px 0;">
+    <div style="display: flex; justify-content: space-between; gap: 10px;">
+        <div style="background: rgba(14, 203, 129, 0.12); border: 1px solid #0ECB81; padding: 10px; border-radius: 10px; flex: 1; text-align: center;">
+            <span style="color: #0ECB81; font-size: 11px; font-weight: 700;">🎯 {tp_l1}</span>
+            <h4 style="margin: 4px 0 0 0; color: #FFFFFF; font-size: 15px; font-weight: 700;">${tp1:,.2f}</h4>
+        </div>
+        <div style="background: rgba(14, 203, 129, 0.12); border: 1px solid #0ECB81; padding: 10px; border-radius: 10px; flex: 1; text-align: center;">
+            <span style="color: #0ECB81; font-size: 11px; font-weight: 700;">🎯 {tp_l2}</span>
+            <h4 style="margin: 4px 0 0 0; color: #FFFFFF; font-size: 15px; font-weight: 700;">${tp2:,.2f}</h4>
+        </div>
+        <div style="background: rgba(246, 70, 93, 0.12); border: 1px solid #F6465D; padding: 10px; border-radius: 10px; flex: 1; text-align: center;">
+            <span style="color: #F6465D; font-size: 11px; font-weight: 700;">🛡️ {sl_l}</span>
+            <h4 style="margin: 4px 0 0 0; color: #FFFFFF; font-size: 15px; font-weight: 700;">${sl:,.2f}</h4>
+        </div>
+    </div>
 </div>
 """
     st.markdown(signal_card_html, unsafe_allow_html=True)
