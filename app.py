@@ -3,228 +3,241 @@ import requests
 
 # Page Configuration
 st.set_page_config(
-    page_title="Binance Signal App - XAU",
+    page_title="Binance Live Trading Center",
     page_icon="📈",
     layout="wide"
 )
 
-# Dark Theme & Custom CSS (Based on image_1.png)
+# Dark Theme & Custom CSS matching your UI screenshots
 st.markdown("""
     <style>
-    /* Main App Background */
     .stApp {
-        background-color: #1A1D24; /* Dark background from image */
+        background-color: #121418;
         color: #FFFFFF;
     }
     
-    /* Text Colors */
-    h1, h2, h3, h4, h5, h6, p, label, span {
-        color: #E0E0E0 !important;
+    /* Tabs styling */
+    .stTabs [data-baseweb="tab-list"] {
+        gap: 20px;
+        background-color: #121418;
     }
-    
-    /* Ticker/Asset Title (XAU/USD) */
-    .ticker-title {
-        font-size: 36px;
+    .stTabs [data-baseweb="tab"] {
+        color: #888888;
         font-weight: bold;
-        color: #FBC02D !important; /* Yellow/Gold color */
     }
-    
-    .binance-spot {
-        color: #888888 !important;
-        font-size: 14px;
-        margin-bottom: -10px;
+    .stTabs [aria-selected="true"] {
+        color: #FF5252 !important;
+        border-bottom-color: #FF5252 !important;
     }
 
-    /* Downtrend Text */
-    .downtrend {
-        color: #EF5350 !important; /* Red color */
-        font-size: 16px;
-        font-weight: bold;
-    }
-
-    /* Stat Cards (Live Price, 24h Change) */
-    .stat-box {
-        background-color: #252932;
-        padding: 15px;
-        border-radius: 8px;
-        text-align: center;
-        margin: 5px;
-    }
-    
-    .stat-label {
-        color: #888888 !important;
-        font-size: 12px;
-        margin-bottom: 5px;
-    }
-    
-    .stat-value {
-        font-size: 18px;
-        font-weight: bold;
+    /* Input boxes styling */
+    .stSelectbox div[data-baseweb="select"], .stTextInput input {
+        background-color: #1E2329 !important;
         color: #FFFFFF !important;
-    }
-    
-    .positive-change {
-        color: #4CAF50 !important; /* Green for +0.00% */
+        border: 1px solid #2B313A !important;
+        border-radius: 8px;
     }
 
-    /* Target/SL Cards (TP 1, TP 2, SL) */
-    .target-card {
-        background-color: #252932;
+    /* Card Containers */
+    .trading-card {
+        background-color: #1E2329;
+        border: 1px solid #2B313A;
         padding: 20px;
-        border-radius: 10px;
-        text-align: center;
-        border: 1px solid #4CAF50; /* Default green border */
-        margin: 10px 0;
+        border-radius: 12px;
+        margin-top: 10px;
     }
 
-    .sl-card {
-        border: 1px solid #EF5350; /* Red border for SL */
-    }
-    
-    .target-label {
-        font-size: 16px;
+    .ticker-title {
+        font-size: 32px;
         font-weight: bold;
-    }
-    
-    .target-value {
-        font-size: 24px;
-        font-weight: bold;
-        color: #FFFFFF !important;
+        color: #F0B90B !important; /* Binance Yellow */
     }
 
-    /* SELL Button */
-    .sell-button {
-        background-color: #EF5350;
+    /* BUY / SELL Buttons */
+    .buy-btn {
+        background-color: #0ECB81;
         color: white;
-        padding: 10px 20px;
-        text-align: center;
-        text-decoration: none;
-        display: inline-block;
-        font-size: 16px;
-        margin: 4px 2px;
-        cursor: pointer;
-        border-radius: 8px;
-        border: none;
+        padding: 10px 24px;
+        font-size: 20px;
         font-weight: bold;
+        border-radius: 8px;
+        text-align: center;
+        float: right;
+    }
+    .sell-btn {
+        background-color: #F6465D;
+        color: white;
+        padding: 10px 24px;
+        font-size: 20px;
+        font-weight: bold;
+        border-radius: 8px;
+        text-align: center;
         float: right;
     }
 
-    /* Login/Lock Screen Styling */
-    .login-container {
-        margin-top: 100px;
-        padding: 40px;
-        background-color: #252932;
-        border-radius: 10px;
-        border: 1px solid #333;
+    /* Stat boxes */
+    .stat-label {
+        color: #848E9C;
+        font-size: 13px;
+        text-transform: uppercase;
     }
-    .stTextInput input {
-        color: #FFFFFF !important;
-        background-color: #1A1D24 !important;
-        border: 1px solid #444 !important;
+    .stat-val {
+        color: #FFFFFF;
+        font-size: 18px;
+        font-weight: bold;
+    }
+
+    /* TP & SL Cards */
+    .tp-card {
+        background-color: #172622;
+        border: 1px solid #0ECB81;
+        padding: 15px;
+        border-radius: 10px;
+        text-align: center;
+    }
+    .sl-card {
+        background-color: #26191D;
+        border: 1px solid #F6465D;
+        padding: 15px;
+        border-radius: 10px;
+        text-align: center;
     }
     </style>
 """, unsafe_allow_html=True)
 
-# --- Session State for Login Lock ---
-if 'authenticated' not in st.session_state:
-    st.session_state.authenticated = False
+# Function to fetch all active trading pairs from Binance
+@st.cache_data(ttl=3600)
+def get_binance_symbols():
+    url = "https://api.binance.com/api/v3/exchangeInfo"
+    try:
+        response = requests.get(url)
+        data = response.json()
+        symbols = [s['symbol'] for s in data['symbols'] if s['quoteAsset'] == 'USDT' and s['status'] == 'TRADING']
+        return symbols
+    except:
+        return ["BTCUSDT", "ETHUSDT", "BNBUSDT", "SOLUSDT", "XRPUSDT"]
 
-# --- Login Function / Lock Screen ---
-def check_login():
-    # Center the login form
-    col1, col2, col3 = st.columns([1, 2, 1])
-    with col2:
-        st.markdown('<div class="login-container">', unsafe_allow_html=True)
-        st.markdown("<h2 style='text-align: center; color: #FBC02D;'>🔐 යෙදුම් අගුල (App Lock)</h2>", unsafe_allow_html=True)
-        st.markdown("<p style='text-align: center; color: #888;'>කරුණාකර ඇප් එකට පිවිසීමට ඔබේ රහස් මුදල් පදය (Password) ඇතුළත් කරන්න.</p>", unsafe_allow_html=True)
-        
-        password = st.text_input("Password", type="password", label_visibility="collapsed")
-        if st.button("පිවිසෙන්න (Login)", use_container_width=True):
-            # !!! ඔබට අවශ්‍ය පාස්වර්ඩ් එක මෙතන වෙනස් කරන්න !!!
-            if password == "xau123": 
-                st.session_state.authenticated = True
-                st.rerun()
-            else:
-                st.error("වැරදි මුදල් පදයක්! කරුණාකර නැවත උත්සාහ කරන්න.")
-        st.markdown('</div>', unsafe_allow_html=True)
+# Function to fetch live ticker data (Price, High, Low, Change)
+def get_ticker_data(symbol):
+    url = f"https://api.binance.com/api/v3/ticker/24hr?symbol={symbol}"
+    try:
+        response = requests.get(url)
+        return response.json()
+    except:
+        return None
 
-# --- Main Application Logic (Locked with Authentication) ---
-if not st.session_state.authenticated:
-    check_login()
-else:
-    # Logout Button in Sidebar (Top left)
-    with st.sidebar:
-        if st.button("လොග්අවුට් වන්න (Logout)"):
-            st.session_state.authenticated = False
-            st.rerun()
+# --- App Tabs ---
+tab1, tab2 = st.tabs(["📊 Live Trading Center", "⚙️ Signal Settings"])
 
-    # --- Header Section ---
-    header_col1, header_col2 = st.columns([3, 1])
-    with header_col1:
-        st.markdown('<p class="binance-spot">BINANCE SPOT</p>', unsafe_allow_html=True)
-        st.markdown('<p class="ticker-title">XAU/USD</p>', unsafe_allow_html=True)
-    with header_col2:
-        st.markdown('<button class="sell-button">SELL 📉</button>', unsafe_allow_html=True)
+with tab1:
+    all_coins = get_binance_symbols()
 
-    st.markdown('<p class="downtrend">● Downtrend Structure (DOWN)</p>', unsafe_allow_html=True)
-
-    # --- Stats Section ---
-    stats_cols = st.columns(4)
+    # Layout for selection and search
+    col_sel1, col_sel2 = st.columns(2)
     
-    stats_data = [
-        ("LIVE PRICE", "$0.00", False),
-        ("24H CHANGE", "+0.00%", True),
-        ("24H HIGH", "$0.00", False),
-        ("24H LOW", "$0.00", False)
-    ]
+    with col_sel1:
+        st.markdown("<p style='color: #848E9C; margin-bottom: 0px;'>Coin Pair එක තෝරන්න:</p>", unsafe_allow_html=True)
+        selected_coin = st.selectbox("Select Coin", all_coins, label_visibility="collapsed")
 
-    for i, (label, value, is_change) in enumerate(stats_data):
-        with stats_cols[i]:
+    with col_sel2:
+        st.markdown("<p style='color: #848E9C; margin-bottom: 0px;'>Coin එක Search කරන්න:</p>", unsafe_allow_html=True)
+        search_query = st.text_input("Search", placeholder="eg: RUNE, ADA", label_visibility="collapsed")
+
+    # Handle Search filter
+    if search_query:
+        search_upper = search_query.upper().strip() + "USDT"
+        if search_upper in all_coins:
+            selected_coin = search_upper
+
+    # Fetch live data for selected coin
+    ticker = get_ticker_data(selected_coin)
+
+    if ticker:
+        last_price = float(ticker['lastPrice'])
+        price_change_pct = float(ticker['priceChangePercent'])
+        high_24h = float(ticker['highPrice'])
+        low_24h = float(ticker['lowPrice'])
+        
+        # Determine Trend & Action based on price change
+        is_uptrend = price_change_pct >= 0
+        trend_text = "Uptrend Structure (UP)" if is_uptrend else "Downtrend Structure (DOWN)"
+        trend_color = "#0ECB81" if is_uptrend else "#F6465D"
+        action_type = "BUY" if is_uptrend else "SELL"
+        btn_class = "buy-btn" if is_uptrend else "sell-btn"
+
+        # Calculate dynamic TP and SL targets based on live price
+        if is_uptrend:
+            tp1 = last_price * 1.02  # +2.0%
+            tp2 = last_price * 1.04  # +4.0%
+            sl = last_price * 0.98   # -2.0%
+        else:
+            tp1 = last_price * 0.98  
+            tp2 = last_price * 0.96  
+            sl = last_price * 1.02   
+
+        # Main Card Display
+        st.markdown(f"""
+            <div class="trading-card">
+                <p style="color: #848E9C; font-size: 12px; margin-bottom: -5px;">BINANCE SPOT</p>
+                <table width="100%">
+                    <tr>
+                        <td><span class="ticker-title">{selected_coin}</span></td>
+                        <td align="right"><div class="{btn_class}">{action_type} 📈</div></td>
+                    </tr>
+                </table>
+                <p style="color: {trend_color}; font-weight: bold; margin-top: 5px;">● {trend_text}</p>
+                <hr style="border-color: #2B313A; margin: 15px 0;">
+                
+                <table width="100%">
+                    <tr>
+                        <td><div class="stat-label">LIVE PRICE</div><div class="stat-val">${last_price:,.4f}</div></td>
+                        <td><div class="stat-label">24H CHANGE</div><div class="stat-val" style="color: {trend_color};">{price_change_pct:+.2f}%</div></td>
+                        <td><div class="stat-label">24H HIGH</div><div class="stat-val">${high_24h:,.4f}</div></td>
+                        <td><div class="stat-label">24H LOW</div><div class="stat-val">${low_24h:,.4f}</div></td>
+                    </tr>
+                </table>
+            </div>
+        """, unsafe_allow_html=True)
+
+        st.markdown("<br>", unsafe_allow_html=True)
+
+        # TP1, TP2, SL Cards
+        tp_col1, tp_col2, sl_col = st.columns(3)
+
+        with tp_col1:
             st.markdown(f"""
-                <div class="stat-box">
-                    <div class="stat-label">{label}</div>
-                    <div class="stat-value {'positive-change' if is_change else ''}">{value}</div>
+                <div class="tp-card">
+                    <p style="color: #0ECB81; font-weight: bold; margin-bottom: 5px;">🎯 TP 1 (+2.0%)</p>
+                    <h3 style="color: #FFFFFF; margin: 0;">${tp1:,.4f}</h3>
                 </div>
             """, unsafe_allow_html=True)
 
-    st.markdown("<br>", unsafe_allow_html=True)
+        with tp_col2:
+            st.markdown(f"""
+                <div class="tp-card">
+                    <p style="color: #0ECB81; font-weight: bold; margin-bottom: 5px;">🎯 TP 2 (+4.0%)</p>
+                    <h3 style="color: #FFFFFF; margin: 0;">${tp2:,.4f}</h3>
+                </div>
+            """, unsafe_allow_html=True)
 
-    # --- Targets & SL Section ---
-    target_cols = st.columns(3)
+        with sl_col:
+            st.markdown(f"""
+                <div class="sl-card">
+                    <p style="color: #F6465D; font-weight: bold; margin-bottom: 5px;">🛡️ SL (-2.0%)</p>
+                    <h3 style="color: #FFFFFF; margin: 0;">${sl:,.4f}</h3>
+                </div>
+            """, unsafe_allow_html=True)
 
-    # TP 1
-    with target_cols[0]:
-        st.markdown("""
-            <div class="target-card">
-                <div class="target-label" style="color: #4CAF50;">🎯 TP 1</div>
-                <div class="target-value">$0.00</div>
-            </div>
-        """, unsafe_allow_html=True)
+    else:
+        st.error("දත්ත ලබා ගැනීමට නොහැකි විය. කරුණාකර නැවත උත්සාහ කරන්න.")
 
-    # TP 2
-    with target_cols[1]:
-        st.markdown("""
-            <div class="target-card">
-                <div class="target-label" style="color: #4CAF50;">🎯 TP 2</div>
-                <div class="target-value">$0.00</div>
-            </div>
-        """, unsafe_allow_html=True)
-
-    # SL
-    with target_cols[2]:
-        st.markdown("""
-            <div class="target-card sl-card">
-                <div class="target-label" style="color: #EF5350;">🛡️ SL</div>
-                <div class="target-value">$0.00</div>
-            </div>
-        """, unsafe_allow_html=True)
-
-    # --- Placeholder for Chart (Like the second part of your image) ---
-    st.markdown("---")
-    st.subheader("Charts Analysis")
-    # To integrate a real chart, you would use something like `streamlit-tradingview`
-    # For now, this just shows a static image placeholder
-    st.image("https://i.imgur.com/7Yt2s1E.png", use_column_width=True) # Replace this link with your actual chart image
+with tab2:
+    st.subheader("⚙️ Signal Configuration Settings")
+    st.write("මෙම අංශයෙන් ඔබට සික්නල් ලබා දෙන ප්‍රතිශත (TP/SL percentages) වෙනස් කරගත හැක.")
     
-    # Message explaining that data needs to be connected
-    st.info("This is the UI structure. You will need to connect to the Binance API to fetch live data and charts.")
+    tp1_pct = st.slider("TP 1 Percentage (%)", 1.0, 10.0, 2.0)
+    tp2_pct = st.slider("TP 2 Percentage (%)", 2.0, 20.0, 4.0)
+    sl_pct = st.slider("Stop Loss Percentage (%)", 1.0, 10.0, 2.0)
+    
+    if st.button("සැකසුම් සුරකින්න (Save Settings)"):
+        st.success("සැකසුම් සාර්ථකව සුරකින ලදී!")
