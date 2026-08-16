@@ -10,7 +10,7 @@ st.set_page_config(
 )
 
 # ---------------------------------------------------------
-# 🔑 ACTIVATION KEYS SYSTEM (URL / Query Parameter Based)
+# 🔑 ACTIVATION KEYS LIST (ඔබට අවශ්‍ය Keys මෙතැනට දාන්න)
 # ---------------------------------------------------------
 VALID_KEYS = [
     "KEY-USER1-8899",
@@ -19,18 +19,42 @@ VALID_KEYS = [
     "MY-SECRET-PASS"
 ]
 
-# URL parameters පරීක්ෂා කිරීම
-query_params = st.query_params
-saved_key = query_params.get("key", None)
+# ---------------------------------------------------------
+# 💾 BROWSER LOCALSTORAGE LOCK SYSTEM
+# ---------------------------------------------------------
 
-if "activated" not in st.session_state:
-    st.session_state["activated"] = False
+# Session State Initialization
+if "authenticated" not in st.session_state:
+    st.session_state["authenticated"] = False
 
-# URL එකේ නිවැරදි Key එක ඇත්නම් Auto-Unlock වේ
-if saved_key in VALID_KEYS:
-    st.session_state["activated"] = True
+# LocalStorage එකෙන් Key එක කියවීම සහ Save කිරීම සඳහා HTML/JS Injector
+def inject_localstorage_script():
+    js_code = f"""
+    <script>
+        const validKeys = {list(VALID_KEYS)};
+        const savedKey = localStorage.getItem('user_activation_key');
 
-# Activation Screen
+        // URL query parameter එකක් මගින් Streamlit Session එක බලපාන හැටි
+        const urlParams = new URLSearchParams(window.location.search);
+        
+        if (savedKey && validKeys.includes(savedKey)) {{
+            if (!urlParams.has('auth')) {{
+                urlParams.set('auth', 'true');
+                window.location.search = urlParams.toString();
+            }}
+        }}
+    </script>
+    """
+    components.html(js_code, height=0, width=0)
+
+# Browser හි Save වී ඇති බව URL එකෙන් පරීක්ෂා කිරීම
+if st.query_params.get("auth") == "true":
+    st.session_state["authenticated"] = True
+
+# Script එක Run කිරීම
+inject_localstorage_script()
+
+# Activation Screen (පළමු වරට එන අයට පෙනෙන කොටස)
 def show_activation_screen():
     st.markdown("""
     <div style="text-align: center; padding: 25px;">
@@ -42,31 +66,46 @@ def show_activation_screen():
     col1, col2, col3 = st.columns([1, 2, 1])
     with col2:
         user_key = st.text_input("Activation Key එක මෙතැනට ගහන්න:", type="password")
-        if st.button("Activate & Lock Access 🔓", use_container_width=True):
+        if st.button("Activate & Remember Device 🔓", use_container_width=True):
             user_key_clean = user_key.strip()
             if user_key_clean in VALID_KEYS:
-                # Browser URL එකට Key එක එකතු කරයි (ලින්ක් එක Save වේ)
-                st.query_params["key"] = user_key_clean
-                st.session_state["activated"] = True
+                # Browser LocalStorage එකේ Key එක ඡන්දය තබා ගැනීම (Permanently)
+                save_js = f"""
+                <script>
+                    localStorage.setItem('user_activation_key', '{user_key_clean}');
+                    const urlParams = new URLSearchParams(window.location.search);
+                    urlParams.set('auth', 'true');
+                    window.location.search = urlParams.toString();
+                </script>
+                """
+                components.html(save_js, height=0, width=0)
                 st.success("App එක සාර්ථකව Activate විය!")
-                st.rerun()
             else:
                 st.error("නොමැති හෝ වැරදි Activation Key එකකි!")
 
-if not st.session_state["activated"]:
+if not st.session_state["authenticated"]:
     show_activation_screen()
     st.stop()
 
-# Sidebar Account Status
+# Sidebar Account Status & Logout
 with st.sidebar:
     st.markdown("### 👤 Account Status")
     st.success("STATUS: ACTIVATED ✔️")
-    if st.button("Logout / Lock App 🚪"):
-        st.query_params.clear()
-        st.session_state["activated"] = False
+    if st.button("Logout / Clear Device 🚪"):
+        clear_js = """
+        <script>
+            localStorage.removeItem('user_activation_key');
+            window.location.href = window.location.pathname;
+        </script>
+        """
+        components.html(clear_js, height=0, width=0)
+        st.session_state["authenticated"] = False
         st.rerun()
 
-# Initialize Session State for App Options
+# ---------------------------------------------------------
+# 📊 MAIN BINANCE APP LOGIC
+# ---------------------------------------------------------
+
 if "tp1_pct" not in st.session_state:
     st.session_state["tp1_pct"] = 2.0
 if "tp2_pct" not in st.session_state:
@@ -76,11 +115,9 @@ if "sl_pct" not in st.session_state:
 if "timeframe" not in st.session_state:
     st.session_state["timeframe"] = "15"
 
-# Multi-API Live Data Fetcher
+# Live Data Fetcher
 def fetch_live_market_data(symbol):
     headers = {"User-Agent": "Mozilla/5.0"}
-    
-    # 1. Binance Global API
     try:
         url = f"https://api.binance.com/api/v3/ticker/24hr?symbol={symbol}"
         res = requests.get(url, headers=headers, timeout=3)
@@ -90,7 +127,6 @@ def fetch_live_market_data(symbol):
     except Exception:
         pass
 
-    # 2. Binance US API
     try:
         url = f"https://api.binance.us/api/v3/ticker/24hr?symbol={symbol}"
         res = requests.get(url, headers=headers, timeout=3)
@@ -100,7 +136,6 @@ def fetch_live_market_data(symbol):
     except Exception:
         pass
 
-    # 3. CryptoCompare API
     try:
         coin = symbol.replace("USDT", "")
         url = f"https://min-api.cryptocompare.com/data/pricemultifull?fsyms={coin}&tsyms=USDT"
@@ -149,10 +184,8 @@ with tab1:
 
     tv_symbol = selected_pair.replace("/", "")
 
-    # Fetch Real-time Market Data
     current_price, price_change_pct, high_price, low_price = fetch_live_market_data(tv_symbol)
 
-    # Technical Signal Rules
     if price_change_pct >= 2.0:
         signal_badge, signal_bg = "STRONG BUY 🚀", "#0ECB81"
         trend_text, trend_color = "Bullish Momentum (Strong UP)", "#0ECB81"
@@ -170,7 +203,6 @@ with tab1:
         trend_text, trend_color = "Downtrend Structure (DOWN)", "#E55656"
         is_buy = False
 
-    # Targets Calculation
     tp1_ratio = st.session_state["tp1_pct"] / 100.0
     tp2_ratio = st.session_state["tp2_pct"] / 100.0
     sl_ratio = st.session_state["sl_pct"] / 100.0
@@ -186,7 +218,6 @@ with tab1:
         tp1 = tp2 = sl = 0.0
         tp_l1 = tp_l2 = sl_l = "-"
 
-    # Professional Signal Card Container
     signal_card_html = f"""
 <div style="background: #181A20; padding: 22px; border-radius: 14px; border: 1px solid #2B313A; color: white;">
 <div style="display: flex; justify-content: space-between; align-items: center;">
@@ -243,7 +274,6 @@ with tab1:
     tf_current = st.session_state["timeframe"]
     ta_interval = f"{tf_current}m" if tf_current.isdigit() else "1D"
 
-    # Technical Analysis Meter
     st.markdown("### 📊 Live Technical Analysis Meter")
     ta_widget_code = f"""
 <div class="tradingview-widget-container">
@@ -264,7 +294,6 @@ with tab1:
 """
     components.html(ta_widget_code, height=440)
 
-    # TradingView Chart
     st.markdown("### 📈 Live Interactive Chart")
     selected_tf = st.session_state["timeframe"]
     chart_code = f"""
@@ -292,7 +321,6 @@ new TradingView.widget({{
 
 with tab2:
     st.subheader("⚙️ Signal Configuration Controls")
-    
     col_s1, col_s2, col_s3 = st.columns(3)
     with col_s1:
         st.session_state["tp1_pct"] = st.number_input("TP 1 (%)", 0.5, 20.0, st.session_state["tp1_pct"], 0.5)
