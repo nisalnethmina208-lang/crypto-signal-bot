@@ -1,15 +1,86 @@
 import streamlit as st
 import streamlit.components.v1 as components
 import requests
+import extra_streamlit_components as stx
 
-# Page Configuration (Browser Tab එකේ නම සහ Icon එක)
+# Page Configuration
 st.set_page_config(
     page_title="Binance Pro Signal Center", 
     page_icon="⚡", 
     layout="centered"
 )
 
-# Initialize Session State
+# ---------------------------------------------------------
+# 🔑 ACTIVATION KEYS SYSTEM (ඔබට අවශ්‍ය Keys මෙතැනට එකතු කරන්න)
+# ---------------------------------------------------------
+VALID_KEYS = [
+    "KEY-USER1-8899",
+    "KEY-USER2-7711",
+    "KEY-VIP-TRADER",
+    "MY-SECRET-PASS"
+]
+
+# Cookie Manager සම්බන්ධ කිරීම (Browser Memory සඳහා)
+cookie_manager = stx.get_cookie_manager()
+
+# ---------------------------------------------------------
+# AUTO LOGIN / ACTIVATION CHECK
+# ---------------------------------------------------------
+# Browser එකේ දැනටමත් Key එක Save වී ඇත්දැයි බලයි
+saved_key = cookie_manager.get(cookie="user_activation_key")
+
+if "activated" not in st.session_state:
+    st.session_state["activated"] = False
+
+# Cookie එකේ නිවැරදි Key එකක් ඇත්නම් Auto-Unlock වේ
+if saved_key in VALID_KEYS:
+    st.session_state["activated"] = True
+
+# Activation Screen (පළමු වරට App එකට එන අයට පෙනෙන කොටස)
+def show_activation_screen():
+    st.markdown("""
+    <div style="text-align: center; padding: 25px;">
+        <h2 style="color: #F0B90B;">🔐 APP ACTIVATION REQUIRED</h2>
+        <p style="color: #848E9C;">ඔබට ලැබුණු Activation Key එක ඇතුළත් කර App එක Unlock කරගන්න.</p>
+    </div>
+    """, unsafe_allow_html=True)
+    
+    col1, col2, col3 = st.columns([1, 2, 1])
+    with col2:
+        user_key = st.text_input("Activation Key එක මෙතැනට ගහන්න:", type="password")
+        if st.button("Activate & Remember Me 🔓", use_container_width=True):
+            user_key_clean = user_key.strip()
+            if user_key_clean in VALID_KEYS:
+                # Browser එකේ Key එක Save කරයි (දින 365 ක් යනකම් මතක තබා ගනී)
+                cookie_manager.set("user_activation_key", user_key_clean, expires_at=None)
+                st.session_state["activated"] = True
+                st.success("App එක සාර්ථකව Activate විය!")
+                st.rerun()
+            else:
+                st.error("නොමැති හෝ වැරදි Activation Key එකකි!")
+
+# Activate වී නැත්නම් Lock Screen එක පමණක් පෙන්වයි
+if not st.session_state["activated"]:
+    show_activation_screen()
+    st.stop()
+
+# ---------------------------------------------------------
+# 📊 MAIN BINANCE APP (ACTIVATE වූ පසු පෙනෙන කොටස)
+# ---------------------------------------------------------
+
+# Sidebar Controls
+with st.sidebar:
+    st.markdown("### 👤 Account Status")
+    st.success("STATUS: ACTIVATED ✔️")
+    st.caption(f"Active Key: `{saved_key}`")
+    
+    # Device එකෙන් Lock කිරීමට අවශ්‍ය නම්
+    if st.button("Deactivate this Device 🚪"):
+        cookie_manager.delete("user_activation_key")
+        st.session_state["activated"] = False
+        st.rerun()
+
+# Session State for App
 if "tp1_pct" not in st.session_state:
     st.session_state["tp1_pct"] = 2.0
 if "tp2_pct" not in st.session_state:
@@ -56,10 +127,7 @@ def fetch_live_market_data(symbol):
 
     return 0.0, 0.0, 0.0, 0.0
 
-
-# ---------------------------------------------------------
-# MAIN APP HEADER BANNER (App එකට එද්දිම උඩින්ම වැටෙන කොටස)
-# ---------------------------------------------------------
+# HEADER BANNER
 st.markdown("""
 <div style="background: linear-gradient(135deg, #1E2329 0%, #0B0E11 100%); padding: 20px; border-radius: 16px; border: 1px solid #F0B90B; margin-bottom: 20px; text-align: center; box-shadow: 0px 4px 15px rgba(240, 185, 11, 0.15);">
     <div style="display: flex; align-items: center; justify-content: center; gap: 10px;">
@@ -72,7 +140,6 @@ st.markdown("""
     </div>
 </div>
 """, unsafe_allow_html=True)
-
 
 # Interface Tabs
 tab1, tab2 = st.tabs(["📊 Live Trading Center", "⚙️ Signal Settings"])
@@ -187,14 +254,18 @@ with tab1:
     st.markdown(signal_card_html, unsafe_allow_html=True)
     st.markdown("<br>", unsafe_allow_html=True)
 
-    # TradingView Pro Technical Analysis Meter Widget
+    tf_val = st.session_state["timeframe"]
+    ta_map = {"1": "1m", "5": "5m", "15": "15m", "60": "1h", "240": "4h", "D": "1D"}
+    ta_interval = ta_map.get(tf_val, "15m")
+
+    # TradingView Technical Analysis Meter
     st.markdown("### 📊 Live Technical Analysis Meter")
     ta_widget_code = f"""
 <div class="tradingview-widget-container">
   <div class="tradingview-widget-container__widget"></div>
   <script type="text/javascript" src="https://s3.tradingview.com/external-embedding/embed-widget-technical-analysis.js" async>
   {{
-  "interval": "{st.session_state['timeframe']}m" if "{st.session_state['timeframe']}".isdigit() else "1D",
+  "interval": "{ta_interval}",
   "width": "100%",
   "isTransparent": false,
   "height": 430,
@@ -208,7 +279,7 @@ with tab1:
 """
     components.html(ta_widget_code, height=440)
 
-    # TradingView Chart Widget
+    # TradingView Chart
     st.markdown("### 📈 Live Interactive Chart")
     selected_tf = st.session_state["timeframe"]
     chart_code = f"""
