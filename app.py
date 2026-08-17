@@ -8,22 +8,22 @@ st.set_page_config(
     layout="wide"
 )
 
-# Dark Theme & Custom CSS (Binance Style)
+# Studio Light Theme & Custom CSS (White Background & Black Text)
 st.markdown("""
     <style>
     .stApp {
-        background-color: #121418;
-        color: #FFFFFF;
+        background-color: #FFFFFF;
+        color: #000000;
     }
     .main-title {
         font-size: 28px;
         font-weight: bold;
-        color: #F0B90B;
+        color: #B28800;
         margin-bottom: 10px;
     }
     .trading-card {
-        background-color: #1E2329;
-        border: 1px solid #2B313A;
+        background-color: #F8F9FA;
+        border: 1px solid #D1D5DB;
         padding: 20px;
         border-radius: 12px;
         margin-bottom: 20px;
@@ -31,15 +31,15 @@ st.markdown("""
     .ticker-title {
         font-size: 32px;
         font-weight: bold;
-        color: #F0B90B !important;
+        color: #111827 !important;
     }
     .binance-spot {
-        color: #848E9C;
+        color: #4B5563;
         font-size: 12px;
         text-transform: uppercase;
     }
     .buy-btn {
-        background-color: #0ECB81;
+        background-color: #10B981;
         color: white;
         padding: 10px 24px;
         font-size: 18px;
@@ -49,7 +49,7 @@ st.markdown("""
         float: right;
     }
     .sell-btn {
-        background-color: #F6465D;
+        background-color: #EF4444;
         color: white;
         padding: 10px 24px;
         font-size: 18px;
@@ -58,15 +58,21 @@ st.markdown("""
         text-align: center;
         float: right;
     }
-    .trend-up { color: #0ECB81 !important; font-weight: bold; }
-    .trend-down { color: #F6465D !important; font-weight: bold; }
-    .stat-label { color: #848E9C; font-size: 13px; }
-    .stat-val { color: #FFFFFF; font-size: 16px; font-weight: bold; }
+    .trend-up { color: #059669 !important; font-weight: bold; }
+    .trend-down { color: #DC2626 !important; font-weight: bold; }
+    .stat-label { color: #4B5563; font-size: 13px; }
+    .stat-val { color: #111827; font-size: 16px; font-weight: bold; }
 
     .stTextArea textarea {
-        background-color: #1E2329 !important;
-        color: #FFFFFF !important;
-        border: 1px solid #2B313A !important;
+        background-color: #F8F9FA !important;
+        color: #000000 !important;
+        border: 1px solid #D1D5DB !important;
+    }
+    
+    /* Streamlit Sidebar adjustments for Light Theme */
+    [data-testid="stSidebar"] {
+        background-color: #F3F4F6;
+        color: #000000;
     }
     </style>
 """, unsafe_allow_html=True)
@@ -85,14 +91,106 @@ def get_coin_data(coin_id):
 with st.sidebar:
     st.markdown("## ⚙️ Binance Settings")
     
+    # Expanded Coin Options (Coins 100+)
     coin_options = {
         "BTC/USDT": {"id": "bitcoin", "symbol": "BINANCE:BTCUSDT"},
         "ETH/USDT": {"id": "ethereum", "symbol": "BINANCE:ETHUSDT"},
         "BNB/USDT": {"id": "binancecoin", "symbol": "BINANCE:BNBUSDT"},
         "SOL/USDT": {"id": "solana", "symbol": "BINANCE:SOLUSDT"},
         "XRP/USDT": {"id": "ripple", "symbol": "BINANCE:XRPUSDT"},
-        "ADA/USDT": {"id": "cardano", "symbol": "BINANCE:ADAUSDT"}
+        "ADA/USDT": {"id": "cardano", "symbol": "BINANCE:ADAUSDT"},
+        "DOGE/USDT": {"id": "dogecoin", "symbol": "BINANCE:DOGEUSDT"},
+        "AVAX/USDT": {"id": "avalanche-2", "symbol": "BINANCE:AVAXUSDT"},
+        "TRX/USDT": {"id": "tron", "symbol": "BINANCE:TRXUSDT"},
+        "DOT/USDT": {"id": "polkadot", "symbol": "BINANCE:DOTUSDT"},
+        "MATIC/USDT": {"id": "polygon-ecosystem-token", "symbol": "BINANCE:MATICUSDT"},
+        "LINK/USDT": {"id": "chainlink", "symbol": "BINANCE:LINKUSDT"},
+        "UNI/USDT": {"id": "uniswap", "symbol": "BINANCE:UNIUSDT"},
+        "ATOM/USDT": {"id": "cosmos", "symbol": "BINANCE:ATOMUSDT"},
+        "LTC/USDT": {"id": "litecoin", "symbol": "BINANCE:LTCUSDT"},
+        "NEAR/USDT": {"id": "near", "symbol": "BINANCE:NEARUSDT"},
+        "APT/USDT": {"id": "aptos", "symbol": "BINANCE:APTUSDT"},
+        "FTM/USDT": {"id": "fantom", "symbol": "BINANCE:FTMUSDT"},
+        "ICP/USDT": {"id": "internet-computer", "symbol": "BINANCE:ICPUSDT"},
+        "RENDER/USDT": {"id": "render-token", "symbol": "BINANCE:RNDRUSDT"},
+        "INJ/USDT": {"id": "injective-protocol", "symbol": "BINANCE:INJUSDT"},
+        "TIA/USDT": {"id": "celestia", "symbol": "BINANCE:TIAUSDT"},
+        "ARB/USDT": {"id": "arbitrum", "symbol": "BINANCE:ARBUSDT"},
+        "OP/USDT": {"id": "optimism", "symbol": "BINANCE:OPUSDT"},
+        "SUI/USDT": {"id": "sui", "symbol": "BINANCE:SUIUSDT"},
+        "SEI/USDT": {"id": "sei-network", "symbol": "BINANCE:SEIUSDT"},
+        "PEPE/USDT": {"id": "pepe", "symbol": "BINANCE:PEPEUSDT"},
+        "SHIB/USDT": {"id": "shiba-inu", "symbol": "BINANCE:SHIBUSDT"},
+        "FLOKI/USDT": {"id": "floki", "symbol": "BINANCE:FLOKIUSDT"},
+        "BONK/USDT": {"id": "bonk", "symbol": "BINANCE:BONKUSDT"},
+        "XLM/USDT": {"id": "stellar", "symbol": "BINANCE:XLMUSDT"},
+        "BCH/USDT": {"id": "bitcoin-cash", "symbol": "BINANCE:BCHUSDT"},
+        "ALGO/USDT": {"id": "algorand", "symbol": "BINANCE:ALGOUSDT"},
+        "VET/USDT": {"id": "vechain", "symbol": "BINANCE:VETUSDT"},
+        "GRT/USDT": {"id": "the-graph", "symbol": "BINANCE:GRTUSDT"},
+        "SAND/USDT": {"id": "the-sandbox", "symbol": "BINANCE:SANDUSDT"},
+        "MANA/USDT": {"id": "decentraland", "symbol": "BINANCE:MANAUSDT"},
+        "AXS/USDT": {"id": "axie-infinity", "symbol": "BINANCE:AXSUSDT"},
+        "THETA/USDT": {"id": "theta-token", "symbol": "BINANCE:THETAUSDT"},
+        "EGLD/USDT": {"id": "elrond-erd-2", "symbol": "BINANCE:EGLDUSDT"},
+        "KAS/USDT": {"id": "kaspa", "symbol": "BINANCE:KASUSDT"},
+        "HBAR/USDT": {"id": "hedera-hashgraph", "symbol": "BINANCE:HBARUSDT"},
+        "FLOW/USDT": {"id": "flow", "symbol": "BINANCE:FLOWUSDT"},
+        "EOS/USDT": {"id": "eos", "symbol": "BINANCE:EOSUSDT"},
+        "CRV/USDT": {"id": "curve-dao-token", "symbol": "BINANCE:CRVUSDT"},
+        "AAVE/USDT": {"id": "aave", "symbol": "BINANCE:AAVEUSDT"},
+        "MKR/USDT": {"id": "maker", "symbol": "BINANCE:MKRUSDT"},
+        "SNX/USDT": {"id": "synthetix-network-token", "symbol": "BINANCE:SNXUSDT"},
+        "COMP/USDT": {"id": "compound-governance-token", "symbol": "BINANCE:COMPUSDT"},
+        "CHZ/USDT": {"id": "chiliz", "symbol": "BINANCE:CHZUSDT"},
+        "ZIL/USDT": {"id": "zilliqa", "symbol": "BINANCE:ZILUSDT"},
+        "ENJ/USDT": {"id": "enjincoin", "symbol": "BINANCE:ENJUSDT"},
+        "BAT/USDT": {"id": "basic-attention-token", "symbol": "BINANCE:BATUSDT"},
+        "ZRX/USDT": {"id": "0x", "symbol": "BINANCE:ZRXUSDT"},
+        "GALA/USDT": {"id": "gala", "symbol": "BINANCE:GALAUSDT"},
+        "ROSE/USDT": {"id": "oasis-network", "symbol": "BINANCE:ROSEUSDT"},
+        "ICX/USDT": {"id": "icon", "symbol": "BINANCE:ICXUSDT"},
+        "KAVA/USDT": {"id": "kava", "symbol": "BINANCE:KAVAUSDT"},
+        "IOTX/USDT": {"id": "iotex", "symbol": "BINANCE:IOTXUSDT"},
+        "STX/USDT": {"id": "blockstack", "symbol": "BINANCE:STXUSDT"},
+        "CKB/USDT": {"id": "nervos-network", "symbol": "BINANCE:CKBUSDT"},
+        "MINA/USDT": {"id": "mina-protocol", "symbol": "BINANCE:MINAUSDT"},
+        "GLMR/USDT": {"id": "moonbeam", "symbol": "BINANCE:GLMRUSDT"},
+        "ACH/USDT": {"id": "alchemy-pay", "symbol": "BINANCE:ACHUSDT"},
+        "JASMY/USDT": {"id": "jasmycoin", "symbol": "BINANCE:JASMYUSDT"},
+        "LDO/USDT": {"id": "lido-dao", "symbol": "BINANCE:LDOUSDT"},
+        "SSV/USDT": {"id": "ssv-network", "symbol": "BINANCE:SSVUSDT"},
+        "CFX/USDT": {"id": "conflux-token", "symbol": "BINANCE:CFXUSDT"},
+        "MASK/USDT": {"id": "mask-network", "symbol": "BINANCE:MASKUSDT"},
+        "AGIX/USDT": {"id": "singularitynet", "symbol": "BINANCE:AGIXUSDT"},
+        "FET/USDT": {"id": "fetch-ai", "symbol": "BINANCE:FETUSDT"},
+        "RLC/USDT": {"id": "iexec-rlc", "symbol": "BINANCE:RLCUSDT"},
+        "BAND/USDT": {"id": "band-protocol", "symbol": "BINANCE:BANDUSDT"},
+        "API3/USDT": {"id": "api3", "symbol": "BINANCE:API3USDT"},
+        "SKL/USDT": {"id": "ankr-network", "symbol": "BINANCE:SKLUSDT"},
+        "CTSI/USDT": {"id": "cartesi", "symbol": "BINANCE:CTSIUSDT"},
+        "COTI/USDT": {"id": "coti", "symbol": "BINANCE:COTIUSDT"},
+        "DGB/USDT": {"id": "digibyte", "symbol": "BINANCE:DGBUSDT"},
+        "SC/USDT": {"id": "siacoin", "symbol": "BINANCE:SCUSDT"},
+        "RVN/USDT": {"id": "ravencoin", "symbol": "BINANCE:RVNUSDT"},
+        "IOST/USDT": {"id": "iostoken", "symbol": "BINANCE:IOSTUSDT"},
+        "ONT/USDT": {"id": "ontology", "symbol": "BINANCE:ONTUSDT"},
+        "ZEC/USDT": {"id": "zcash", "symbol": "BINANCE:ZECUSDT"},
+        "DASH/USDT": {"id": "dash", "symbol": "BINANCE:DASHUSDT"},
+        "XMR/USDT": {"id": "monero", "symbol": "BINANCE:XMRUSDT"},
+        "ZEN/USDT": {"id": "horizen", "symbol": "BINANCE:ZENUSDT"},
+        "QTUM/USDT": {"id": "qtum", "symbol": "BINANCE:QTUMUSDT"},
+        "OMG/USDT": {"id": "omisego", "symbol": "BINANCE:OMGUSDT"},
+        "NKN/USDT": {"id": "nkn", "symbol": "BINANCE:NKNUSDT"},
+        "OGN/USDT": {"id": "origin-protocol", "symbol": "BINANCE:OGNUSDT"},
+        "BAL/USDT": {"id": "balancer", "symbol": "BINANCE:BALUSDT"},
+        "LRC/USDT": {"id": "loopring", "symbol": "BINANCE:LRCUSDT"},
+        "SXP/USDT": {"id": "swipe", "symbol": "BINANCE:SXPUSDT"},
+        "KNC/USDT": {"id": "kyber-network-crystal", "symbol": "BINANCE:KNCUSDT"},
+        "STORJ/USDT": {"id": "storj", "symbol": "BINANCE:STORJUSDT"},
+        "ANKR/USDT": {"id": "ankr", "symbol": "BINANCE:ANKRUSDT"}
     }
+    
     selected_coin_display = st.selectbox("Select Market:", list(coin_options.keys()), index=0)
     coin_id = coin_options[selected_coin_display]["id"]
     tv_symbol = coin_options[selected_coin_display]["symbol"]
@@ -147,7 +245,7 @@ st.markdown(f"""
     </div>
 """, unsafe_allow_html=True)
 
-# --- TradingView Live Chart Widget (Direct HTML Embed - No Error) ---
+# --- TradingView Live Chart Widget (Direct HTML Embed - Light Theme) ---
 st.subheader("📊 Live Price Chart")
 
 chart_html = f"""
@@ -161,10 +259,10 @@ chart_html = f"""
     "symbol": "{tv_symbol}",
     "interval": "{chart_interval}",
     "timezone": "Etc/UTC",
-    "theme": "dark",
+    "theme": "light",
     "style": "1",
     "locale": "en",
-    "toolbar_bg": "#1e2329",
+    "toolbar_bg": "#f8f9fa",
     "enable_publishing": false,
     "allow_symbol_change": true,
     "container_id": "tradingview_chart"
