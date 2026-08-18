@@ -3,12 +3,12 @@ import requests
 
 # Page Configuration
 st.set_page_config(
-    page_title="Binance Pro Trading Center",
+    page_title="Binance Pro Signal Terminal",
     page_icon="📈",
     layout="wide"
 )
 
-# Advanced Studio Light Theme & Modern Dashboard CSS
+# Advanced Studio Light Theme & Signal UI CSS
 st.markdown("""
     <style>
     .stApp {
@@ -27,14 +27,13 @@ st.markdown("""
         font-size: 14px;
         margin-bottom: 25px;
     }
-    /* Modern Glass/Clean Trading Card */
     .trading-card {
         background: #FFFFFF;
         border: 1px solid #E2E8F0;
         padding: 24px;
         border-radius: 16px;
         margin-bottom: 20px;
-        box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05), 0 2px 4px -1px rgba(0, 0, 0, 0.03);
+        box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05);
     }
     .ticker-title {
         font-size: 36px;
@@ -52,43 +51,49 @@ st.markdown("""
         text-transform: uppercase;
         letter-spacing: 0.5px;
     }
-    /* Modern Action Buttons */
-    .buy-btn-box {
+    .buy-signal-box {
         background: linear-gradient(135deg, #10B981 0%, #059669 100%);
         color: white;
-        padding: 14px 28px;
-        font-size: 18px;
-        font-weight: 700;
+        padding: 16px 24px;
+        font-size: 20px;
+        font-weight: 800;
         border-radius: 12px;
         text-align: center;
         box-shadow: 0 4px 12px rgba(16, 185, 129, 0.3);
-        letter-spacing: 0.5px;
     }
-    .sell-btn-box {
+    .sell-signal-box {
         background: linear-gradient(135deg, #EF4444 0%, #DC2626 100%);
         color: white;
-        padding: 14px 28px;
-        font-size: 18px;
-        font-weight: 700;
+        padding: 16px 24px;
+        font-size: 20px;
+        font-weight: 800;
         border-radius: 12px;
         text-align: center;
         box-shadow: 0 4px 12px rgba(239, 68, 68, 0.3);
-        letter-spacing: 0.5px;
     }
     .trend-up { color: #059669 !important; font-weight: 700; }
     .trend-down { color: #DC2626 !important; font-weight: 700; }
     
-    .stat-label { color: #64748B; font-size: 12px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 4px; }
-    .stat-val { color: #0F172A; font-size: 20px; font-weight: 700; }
+    .stat-label { color: #64748B; font-size: 12px; font-weight: 600; text-transform: uppercase; margin-bottom: 4px; }
+    .stat-val { color: #0F172A; font-size: 18px; font-weight: 700; }
 
-    .stTextArea textarea {
-        background-color: #FFFFFF !important;
-        color: #0F172A !important;
-        border: 1px solid #CBD5E1 !important;
-        border-radius: 10px !important;
+    .target-card-buy {
+        background-color: #ECFDF5;
+        border: 1px solid #A7F3D0;
+        padding: 15px;
+        border-radius: 12px;
+        text-align: center;
     }
-    
-    /* Streamlit Sidebar Clean Look */
+    .target-card-sell {
+        background-color: #FEF2F2;
+        border: 1px solid #FECACA;
+        padding: 15px;
+        border-radius: 12px;
+        text-align: center;
+    }
+    .target-title { font-size: 12px; font-weight: 700; color: #4B5563; text-transform: uppercase; }
+    .target-price { font-size: 22px; font-weight: 800; margin-top: 5px; }
+
     [data-testid="stSidebar"] {
         background-color: #FFFFFF;
         border-right: 1px solid #E2E8F0;
@@ -108,8 +113,8 @@ def get_coin_data(coin_id):
 
 # --- Sidebar (Settings) ---
 with st.sidebar:
-    st.markdown("## ⚙️ Trading Control")
-    st.markdown("Configure your live market feeds below.")
+    st.markdown("## ⚙️ Signal Settings")
+    st.markdown("Select market pair for technical analysis.")
     
     coin_options = {
         "BTC/USDT": {"id": "bitcoin", "symbol": "BINANCE:BTCUSDT"},
@@ -125,23 +130,12 @@ with st.sidebar:
         "MATIC/USDT": {"id": "polygon-ecosystem-token", "symbol": "BINANCE:MATICUSDT"},
         "LINK/USDT": {"id": "chainlink", "symbol": "BINANCE:LINKUSDT"},
         "UNI/USDT": {"id": "uniswap", "symbol": "BINANCE:UNIUSDT"},
-        "ATOM/USDT": {"id": "cosmos", "symbol": "BINANCE:ATOMUSDT"},
-        "LTC/USDT": {"id": "litecoin", "symbol": "BINANCE:LTCUSDT"},
         "NEAR/USDT": {"id": "near", "symbol": "BINANCE:NEARUSDT"},
         "APT/USDT": {"id": "aptos", "symbol": "BINANCE:APTUSDT"},
-        "FTM/USDT": {"id": "fantom", "symbol": "BINANCE:FTMUSDT"},
-        "ICP/USDT": {"id": "internet-computer", "symbol": "BINANCE:ICPUSDT"},
         "RENDER/USDT": {"id": "render-token", "symbol": "BINANCE:RNDRUSDT"},
         "INJ/USDT": {"id": "injective-protocol", "symbol": "BINANCE:INJUSDT"},
-        "TIA/USDT": {"id": "celestia", "symbol": "BINANCE:TIAUSDT"},
-        "ARB/USDT": {"id": "arbitrum", "symbol": "BINANCE:ARBUSDT"},
-        "OP/USDT": {"id": "optimism", "symbol": "BINANCE:OPUSDT"},
-        "SUI/USDT": {"id": "sui", "symbol": "BINANCE:SUIUSDT"},
-        "SEI/USDT": {"id": "sei-network", "symbol": "BINANCE:SEIUSDT"},
         "PEPE/USDT": {"id": "pepe", "symbol": "BINANCE:PEPEUSDT"},
-        "SHIB/USDT": {"id": "shiba-inu", "symbol": "BINANCE:SHIBUSDT"},
-        "FLOKI/USDT": {"id": "floki", "symbol": "BINANCE:FLOKIUSDT"},
-        "BONK/USDT": {"id": "bonk", "symbol": "BINANCE:BONKUSDT"}
+        "SHIB/USDT": {"id": "shiba-inu", "symbol": "BINANCE:SHIBUSDT"}
     }
     
     selected_coin_display = st.selectbox("Select Market Pair:", list(coin_options.keys()), index=0)
@@ -153,8 +147,8 @@ with st.sidebar:
     st.caption("⚡ Powered by Binance & CoinGecko APIs")
 
 # --- Main App Dashboard Layout ---
-st.markdown(f'<p class="main-title">📈 Pro Trading Terminal</p>', unsafe_allow_html=True)
-st.markdown(f'<p class="sub-title-desc">Real-time market overview and advanced charting analysis for <b>{selected_coin_display}</b>.</p>', unsafe_allow_html=True)
+st.markdown(f'<p class="main-title">📈 Pro Trading Signal Terminal</p>', unsafe_allow_html=True)
+st.markdown(f'<p class="sub-title-desc">Advanced market analysis and automated target calculation for <b>{selected_coin_display}</b>.</p>', unsafe_allow_html=True)
 
 # Fetch Live Stats
 data = get_coin_data(coin_id)
@@ -171,34 +165,90 @@ if data and coin_id in data:
     high_24h = price_data.get('usd_24h_high', last_price * 1.02)
     low_24h = price_data.get('usd_24h_low', last_price * 0.98)
 
+# Technical Logic & Trend Detection
 is_uptrend = change_24h >= 0
 trend_class = "trend-up" if is_uptrend else "trend-down"
-action_type = "STRONG BUY" if is_uptrend else "STRONG SELL"
-btn_class = "buy-btn-box" if is_uptrend else "sell-btn-box"
+signal_type = "LONG (BUY) 🚀" if is_uptrend else "SHORT (SELL) 🔻"
+signal_box_class = "buy-signal-box" if is_uptrend else "sell-signal-box"
 change_icon = "▲" if is_uptrend else "▼"
 
-# Top Ticker & Signal Badge Row
+# Automated Target Calculations (TP1, TP2, SL)
+if is_uptrend:
+    entry_price = last_price
+    tp1 = last_price * 1.015  # +1.5% Target 1
+    tp2 = last_price * 1.035  # +3.5% Target 2
+    sl = last_price * 0.992   # -0.8% Stop Loss
+    target_card_cls = "target-card-buy"
+    target_color = "#059669"
+else:
+    entry_price = last_price
+    tp1 = last_price * 0.985  # -1.5% Target 1
+    tp2 = last_price * 0.965  # -3.5% Target 2
+    sl = last_price * 1.008   # +0.8% Stop Loss
+    target_card_cls = "target-card-sell"
+    target_color = "#DC2626"
+
+# Top Ticker & Signal Status Row
 col_top1, col_top2 = st.columns([3, 1])
 with col_top1:
-    st.markdown(f'<span class="binance-badge">Binance Spot</span>', unsafe_allow_html=True)
+    st.markdown(f'<span class="binance-badge">Binance Spot Analysis</span>', unsafe_allow_html=True)
     st.markdown(f'<p class="ticker-title" style="margin-top: 8px;">{selected_coin_display}</p>', unsafe_allow_html=True)
 with col_top2:
     st.markdown('<div style="height: 10px;"></div>', unsafe_allow_html=True)
-    st.markdown(f'<div class="{btn_class}">{action_type} 🚀</div>', unsafe_allow_html=True)
+    st.markdown(f'<div class="{signal_box_class}">{signal_type}</div>', unsafe_allow_html=True)
 
 # Modern Stats Overview Card
 st.markdown(f"""
     <div class="trading-card">
         <table width="100%">
             <tr>
-                <td><div class="stat-label">Live Price</div><div class="stat-val">${last_price:,.2f}</div></td>
+                <td><div class="stat-label">Live Price</div><div class="stat-val">${last_price:,.4f}</div></td>
                 <td><div class="stat-label">24h Change</div><div class="stat-val {trend_class}">{change_icon} {change_24h:,.2f}%</div></td>
-                <td><div class="stat-label">24h High</div><div class="stat-val" style="color: #059669;">${high_24h:,.2f}</div></td>
-                <td><div class="stat-label">24h Low</div><div class="stat-val" style="color: #DC2626;">${low_24h:,.2f}</div></td>
+                <td><div class="stat-label">24h High</div><div class="stat-val" style="color: #059669;">${high_24h:,.4f}</div></td>
+                <td><div class="stat-label">24h Low</div><div class="stat-val" style="color: #DC2626;">${low_24h:,.4f}</div></td>
             </tr>
         </table>
     </div>
 """, unsafe_allow_html=True)
+
+# --- Professional Signal Targets Section ---
+st.markdown("### 🎯 Trade Setup & Targets (TP / SL)")
+
+col_t1, col_t2, col_t3, col_t4 = st.columns(4)
+
+with col_t1:
+    st.markdown(f"""
+        <div class="{target_card_cls}">
+            <div class="target-title">Suggested Entry</div>
+            <div class="target-price" style="color: #0F172A;">${entry_price:,.4f}</div>
+        </div>
+    """, unsafe_allow_html=True)
+
+with col_t2:
+    st.markdown(f"""
+        <div class="{target_card_cls}">
+            <div class="target-title">Take Profit 1 (TP1)</div>
+            <div class="target-price" style="color: {target_color};">${tp1:,.4f}</div>
+        </div>
+    """, unsafe_allow_html=True)
+
+with col_t3:
+    st.markdown(f"""
+        <div class="{target_card_cls}">
+            <div class="target-title">Take Profit 2 (TP2)</div>
+            <div class="target-price" style="color: {target_color};">${tp2:,.4f}</div>
+        </div>
+    """, unsafe_allow_html=True)
+
+with col_t4:
+    st.markdown(f"""
+        <div class="{target_card_cls}">
+            <div class="target-title">Stop Loss (SL)</div>
+            <div class="target-price" style="color: #EF4444;">${sl:,.4f}</div>
+        </div>
+    """, unsafe_allow_html=True)
+
+st.markdown("<br>", unsafe_allow_html=True)
 
 # --- TradingView Live Chart Widget ---
 st.markdown("### 📊 Advanced Price Chart")
@@ -234,7 +284,7 @@ st.markdown("### 📝 Strategy & Notes")
 if 'notepad_content' not in st.session_state:
     st.session_state.notepad_content = ""
 
-note_text = st.text_area("Notes Area", value=st.session_state.notepad_content, height=130, label_visibility="collapsed", placeholder="Write down your trading plans, entry points, or targets here...")
+note_text = st.text_area("Notes Area", value=st.session_state.notepad_content, height=130, label_visibility="collapsed", placeholder="Write down your trading plans, notes, or thoughts here...")
 
 col_n1, col_n2, col_n3 = st.columns([1, 1, 4])
 with col_n1:
