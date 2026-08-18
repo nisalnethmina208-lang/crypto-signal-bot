@@ -8,71 +8,90 @@ st.set_page_config(
     layout="wide"
 )
 
-# Studio Light Theme & Custom CSS (White Background & Black Text)
+# Advanced Studio Light Theme & Modern Dashboard CSS
 st.markdown("""
     <style>
     .stApp {
-        background-color: #FFFFFF;
-        color: #000000;
+        background-color: #F8FAFC;
+        color: #0F172A;
     }
     .main-title {
-        font-size: 28px;
-        font-weight: bold;
-        color: #B28800;
-        margin-bottom: 10px;
+        font-size: 30px;
+        font-weight: 800;
+        color: #1E293B;
+        margin-bottom: 5px;
+        letter-spacing: -0.5px;
     }
+    .sub-title-desc {
+        color: #64748B;
+        font-size: 14px;
+        margin-bottom: 25px;
+    }
+    /* Modern Glass/Clean Trading Card */
     .trading-card {
-        background-color: #F8F9FA;
-        border: 1px solid #D1D5DB;
-        padding: 20px;
-        border-radius: 12px;
+        background: #FFFFFF;
+        border: 1px solid #E2E8F0;
+        padding: 24px;
+        border-radius: 16px;
         margin-bottom: 20px;
+        box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05), 0 2px 4px -1px rgba(0, 0, 0, 0.03);
     }
     .ticker-title {
-        font-size: 32px;
-        font-weight: bold;
-        color: #111827 !important;
+        font-size: 36px;
+        font-weight: 800;
+        color: #0F172A !important;
+        letter-spacing: -1px;
     }
-    .binance-spot {
-        color: #4B5563;
-        font-size: 12px;
+    .binance-badge {
+        background-color: #FEF3C7;
+        color: #D97706;
+        padding: 4px 10px;
+        font-size: 11px;
+        font-weight: 700;
+        border-radius: 6px;
         text-transform: uppercase;
+        letter-spacing: 0.5px;
     }
-    .buy-btn {
-        background-color: #10B981;
+    /* Modern Action Buttons */
+    .buy-btn-box {
+        background: linear-gradient(135deg, #10B981 0%, #059669 100%);
         color: white;
-        padding: 10px 24px;
+        padding: 14px 28px;
         font-size: 18px;
-        font-weight: bold;
-        border-radius: 8px;
+        font-weight: 700;
+        border-radius: 12px;
         text-align: center;
-        float: right;
+        box-shadow: 0 4px 12px rgba(16, 185, 129, 0.3);
+        letter-spacing: 0.5px;
     }
-    .sell-btn {
-        background-color: #EF4444;
+    .sell-btn-box {
+        background: linear-gradient(135deg, #EF4444 0%, #DC2626 100%);
         color: white;
-        padding: 10px 24px;
+        padding: 14px 28px;
         font-size: 18px;
-        font-weight: bold;
-        border-radius: 8px;
+        font-weight: 700;
+        border-radius: 12px;
         text-align: center;
-        float: right;
+        box-shadow: 0 4px 12px rgba(239, 68, 68, 0.3);
+        letter-spacing: 0.5px;
     }
-    .trend-up { color: #059669 !important; font-weight: bold; }
-    .trend-down { color: #DC2626 !important; font-weight: bold; }
-    .stat-label { color: #4B5563; font-size: 13px; }
-    .stat-val { color: #111827; font-size: 16px; font-weight: bold; }
+    .trend-up { color: #059669 !important; font-weight: 700; }
+    .trend-down { color: #DC2626 !important; font-weight: 700; }
+    
+    .stat-label { color: #64748B; font-size: 12px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 4px; }
+    .stat-val { color: #0F172A; font-size: 20px; font-weight: 700; }
 
     .stTextArea textarea {
-        background-color: #F8F9FA !important;
-        color: #000000 !important;
-        border: 1px solid #D1D5DB !important;
+        background-color: #FFFFFF !important;
+        color: #0F172A !important;
+        border: 1px solid #CBD5E1 !important;
+        border-radius: 10px !important;
     }
     
-    /* Streamlit Sidebar adjustments for Light Theme */
+    /* Streamlit Sidebar Clean Look */
     [data-testid="stSidebar"] {
-        background-color: #F3F4F6;
-        color: #000000;
+        background-color: #FFFFFF;
+        border-right: 1px solid #E2E8F0;
     }
     </style>
 """, unsafe_allow_html=True)
@@ -89,9 +108,9 @@ def get_coin_data(coin_id):
 
 # --- Sidebar (Settings) ---
 with st.sidebar:
-    st.markdown("## ⚙️ Binance Settings")
+    st.markdown("## ⚙️ Trading Control")
+    st.markdown("Configure your live market feeds below.")
     
-    # Expanded Coin Options (Coins 100+)
     coin_options = {
         "BTC/USDT": {"id": "bitcoin", "symbol": "BINANCE:BTCUSDT"},
         "ETH/USDT": {"id": "ethereum", "symbol": "BINANCE:ETHUSDT"},
@@ -122,84 +141,20 @@ with st.sidebar:
         "PEPE/USDT": {"id": "pepe", "symbol": "BINANCE:PEPEUSDT"},
         "SHIB/USDT": {"id": "shiba-inu", "symbol": "BINANCE:SHIBUSDT"},
         "FLOKI/USDT": {"id": "floki", "symbol": "BINANCE:FLOKIUSDT"},
-        "BONK/USDT": {"id": "bonk", "symbol": "BINANCE:BONKUSDT"},
-        "XLM/USDT": {"id": "stellar", "symbol": "BINANCE:XLMUSDT"},
-        "BCH/USDT": {"id": "bitcoin-cash", "symbol": "BINANCE:BCHUSDT"},
-        "ALGO/USDT": {"id": "algorand", "symbol": "BINANCE:ALGOUSDT"},
-        "VET/USDT": {"id": "vechain", "symbol": "BINANCE:VETUSDT"},
-        "GRT/USDT": {"id": "the-graph", "symbol": "BINANCE:GRTUSDT"},
-        "SAND/USDT": {"id": "the-sandbox", "symbol": "BINANCE:SANDUSDT"},
-        "MANA/USDT": {"id": "decentraland", "symbol": "BINANCE:MANAUSDT"},
-        "AXS/USDT": {"id": "axie-infinity", "symbol": "BINANCE:AXSUSDT"},
-        "THETA/USDT": {"id": "theta-token", "symbol": "BINANCE:THETAUSDT"},
-        "EGLD/USDT": {"id": "elrond-erd-2", "symbol": "BINANCE:EGLDUSDT"},
-        "KAS/USDT": {"id": "kaspa", "symbol": "BINANCE:KASUSDT"},
-        "HBAR/USDT": {"id": "hedera-hashgraph", "symbol": "BINANCE:HBARUSDT"},
-        "FLOW/USDT": {"id": "flow", "symbol": "BINANCE:FLOWUSDT"},
-        "EOS/USDT": {"id": "eos", "symbol": "BINANCE:EOSUSDT"},
-        "CRV/USDT": {"id": "curve-dao-token", "symbol": "BINANCE:CRVUSDT"},
-        "AAVE/USDT": {"id": "aave", "symbol": "BINANCE:AAVEUSDT"},
-        "MKR/USDT": {"id": "maker", "symbol": "BINANCE:MKRUSDT"},
-        "SNX/USDT": {"id": "synthetix-network-token", "symbol": "BINANCE:SNXUSDT"},
-        "COMP/USDT": {"id": "compound-governance-token", "symbol": "BINANCE:COMPUSDT"},
-        "CHZ/USDT": {"id": "chiliz", "symbol": "BINANCE:CHZUSDT"},
-        "ZIL/USDT": {"id": "zilliqa", "symbol": "BINANCE:ZILUSDT"},
-        "ENJ/USDT": {"id": "enjincoin", "symbol": "BINANCE:ENJUSDT"},
-        "BAT/USDT": {"id": "basic-attention-token", "symbol": "BINANCE:BATUSDT"},
-        "ZRX/USDT": {"id": "0x", "symbol": "BINANCE:ZRXUSDT"},
-        "GALA/USDT": {"id": "gala", "symbol": "BINANCE:GALAUSDT"},
-        "ROSE/USDT": {"id": "oasis-network", "symbol": "BINANCE:ROSEUSDT"},
-        "ICX/USDT": {"id": "icon", "symbol": "BINANCE:ICXUSDT"},
-        "KAVA/USDT": {"id": "kava", "symbol": "BINANCE:KAVAUSDT"},
-        "IOTX/USDT": {"id": "iotex", "symbol": "BINANCE:IOTXUSDT"},
-        "STX/USDT": {"id": "blockstack", "symbol": "BINANCE:STXUSDT"},
-        "CKB/USDT": {"id": "nervos-network", "symbol": "BINANCE:CKBUSDT"},
-        "MINA/USDT": {"id": "mina-protocol", "symbol": "BINANCE:MINAUSDT"},
-        "GLMR/USDT": {"id": "moonbeam", "symbol": "BINANCE:GLMRUSDT"},
-        "ACH/USDT": {"id": "alchemy-pay", "symbol": "BINANCE:ACHUSDT"},
-        "JASMY/USDT": {"id": "jasmycoin", "symbol": "BINANCE:JASMYUSDT"},
-        "LDO/USDT": {"id": "lido-dao", "symbol": "BINANCE:LDOUSDT"},
-        "SSV/USDT": {"id": "ssv-network", "symbol": "BINANCE:SSVUSDT"},
-        "CFX/USDT": {"id": "conflux-token", "symbol": "BINANCE:CFXUSDT"},
-        "MASK/USDT": {"id": "mask-network", "symbol": "BINANCE:MASKUSDT"},
-        "AGIX/USDT": {"id": "singularitynet", "symbol": "BINANCE:AGIXUSDT"},
-        "FET/USDT": {"id": "fetch-ai", "symbol": "BINANCE:FETUSDT"},
-        "RLC/USDT": {"id": "iexec-rlc", "symbol": "BINANCE:RLCUSDT"},
-        "BAND/USDT": {"id": "band-protocol", "symbol": "BINANCE:BANDUSDT"},
-        "API3/USDT": {"id": "api3", "symbol": "BINANCE:API3USDT"},
-        "SKL/USDT": {"id": "ankr-network", "symbol": "BINANCE:SKLUSDT"},
-        "CTSI/USDT": {"id": "cartesi", "symbol": "BINANCE:CTSIUSDT"},
-        "COTI/USDT": {"id": "coti", "symbol": "BINANCE:COTIUSDT"},
-        "DGB/USDT": {"id": "digibyte", "symbol": "BINANCE:DGBUSDT"},
-        "SC/USDT": {"id": "siacoin", "symbol": "BINANCE:SCUSDT"},
-        "RVN/USDT": {"id": "ravencoin", "symbol": "BINANCE:RVNUSDT"},
-        "IOST/USDT": {"id": "iostoken", "symbol": "BINANCE:IOSTUSDT"},
-        "ONT/USDT": {"id": "ontology", "symbol": "BINANCE:ONTUSDT"},
-        "ZEC/USDT": {"id": "zcash", "symbol": "BINANCE:ZECUSDT"},
-        "DASH/USDT": {"id": "dash", "symbol": "BINANCE:DASHUSDT"},
-        "XMR/USDT": {"id": "monero", "symbol": "BINANCE:XMRUSDT"},
-        "ZEN/USDT": {"id": "horizen", "symbol": "BINANCE:ZENUSDT"},
-        "QTUM/USDT": {"id": "qtum", "symbol": "BINANCE:QTUMUSDT"},
-        "OMG/USDT": {"id": "omisego", "symbol": "BINANCE:OMGUSDT"},
-        "NKN/USDT": {"id": "nkn", "symbol": "BINANCE:NKNUSDT"},
-        "OGN/USDT": {"id": "origin-protocol", "symbol": "BINANCE:OGNUSDT"},
-        "BAL/USDT": {"id": "balancer", "symbol": "BINANCE:BALUSDT"},
-        "LRC/USDT": {"id": "loopring", "symbol": "BINANCE:LRCUSDT"},
-        "SXP/USDT": {"id": "swipe", "symbol": "BINANCE:SXPUSDT"},
-        "KNC/USDT": {"id": "kyber-network-crystal", "symbol": "BINANCE:KNCUSDT"},
-        "STORJ/USDT": {"id": "storj", "symbol": "BINANCE:STORJUSDT"},
-        "ANKR/USDT": {"id": "ankr", "symbol": "BINANCE:ANKRUSDT"}
+        "BONK/USDT": {"id": "bonk", "symbol": "BINANCE:BONKUSDT"}
     }
     
-    selected_coin_display = st.selectbox("Select Market:", list(coin_options.keys()), index=0)
+    selected_coin_display = st.selectbox("Select Market Pair:", list(coin_options.keys()), index=0)
     coin_id = coin_options[selected_coin_display]["id"]
     tv_symbol = coin_options[selected_coin_display]["symbol"]
     
-    chart_interval = st.selectbox("Chart Interval:", ["1", "15", "60", "D"], index=1, format_func=lambda x: {"1": "1m", "15": "15m", "60": "1H", "D": "1D"}[x])
+    chart_interval = st.selectbox("Chart Timeframe:", ["1", "15", "60", "D"], index=1, format_func=lambda x: {"1": "1m", "15": "15m", "60": "1H", "D": "1D"}[x])
     st.markdown("---")
+    st.caption("⚡ Powered by Binance & CoinGecko APIs")
 
-# --- Main App Layout ---
-st.markdown(f'<p class="main-title">📈 Binance Live Trading Center - {selected_coin_display}</p>', unsafe_allow_html=True)
+# --- Main App Dashboard Layout ---
+st.markdown(f'<p class="main-title">📈 Pro Trading Terminal</p>', unsafe_allow_html=True)
+st.markdown(f'<p class="sub-title-desc">Real-time market overview and advanced charting analysis for <b>{selected_coin_display}</b>.</p>', unsafe_allow_html=True)
 
 # Fetch Live Stats
 data = get_coin_data(coin_id)
@@ -218,38 +173,38 @@ if data and coin_id in data:
 
 is_uptrend = change_24h >= 0
 trend_class = "trend-up" if is_uptrend else "trend-down"
-action_type = "BUY" if is_uptrend else "SELL"
-btn_class = "buy-btn" if is_uptrend else "sell-btn"
+action_type = "STRONG BUY" if is_uptrend else "STRONG SELL"
+btn_class = "buy-btn-box" if is_uptrend else "sell-btn-box"
 change_icon = "▲" if is_uptrend else "▼"
 
-# Top Row
+# Top Ticker & Signal Badge Row
 col_top1, col_top2 = st.columns([3, 1])
 with col_top1:
-    st.markdown(f'<p class="binance-spot">BINANCE SPOT</p>', unsafe_allow_html=True)
-    st.markdown(f'<p class="ticker-title">{selected_coin_display}</p>', unsafe_allow_html=True)
+    st.markdown(f'<span class="binance-badge">Binance Spot</span>', unsafe_allow_html=True)
+    st.markdown(f'<p class="ticker-title" style="margin-top: 8px;">{selected_coin_display}</p>', unsafe_allow_html=True)
 with col_top2:
-    st.markdown('<br>', unsafe_allow_html=True)
+    st.markdown('<div style="height: 10px;"></div>', unsafe_allow_html=True)
     st.markdown(f'<div class="{btn_class}">{action_type} 🚀</div>', unsafe_allow_html=True)
 
-# Stats Card
+# Modern Stats Overview Card
 st.markdown(f"""
     <div class="trading-card">
         <table width="100%">
             <tr>
-                <td><div class="stat-label">LIVE PRICE</div><div class="stat-val">${last_price:,.2f}</div></td>
-                <td><div class="stat-label">24H CHANGE</div><div class="stat-val {trend_class}">{change_icon} {change_24h:,.2f}%</div></td>
-                <td><div class="stat-label">24H HIGH</div><div class="stat-val">${high_24h:,.2f}</div></td>
-                <td><div class="stat-label">24H LOW</div><div class="stat-val">${low_24h:,.2f}</div></td>
+                <td><div class="stat-label">Live Price</div><div class="stat-val">${last_price:,.2f}</div></td>
+                <td><div class="stat-label">24h Change</div><div class="stat-val {trend_class}">{change_icon} {change_24h:,.2f}%</div></td>
+                <td><div class="stat-label">24h High</div><div class="stat-val" style="color: #059669;">${high_24h:,.2f}</div></td>
+                <td><div class="stat-label">24h Low</div><div class="stat-val" style="color: #DC2626;">${low_24h:,.2f}</div></td>
             </tr>
         </table>
     </div>
 """, unsafe_allow_html=True)
 
-# --- TradingView Live Chart Widget (Direct HTML Embed - Light Theme) ---
-st.subheader("📊 Live Price Chart")
+# --- TradingView Live Chart Widget ---
+st.markdown("### 📊 Advanced Price Chart")
 
 chart_html = f"""
-<div class="tradingview-widget-container" style="height:500px;width:100%">
+<div class="tradingview-widget-container" style="height:520px;width:100%; border-radius: 12px; overflow: hidden; border: 1px solid #E2E8F0;">
   <div id="tradingview_chart" style="height:100%;width:100%"></div>
   <script type="text/javascript" src="https://s3.tradingview.com/tv.js"></script>
   <script type="text/javascript">
@@ -262,7 +217,7 @@ chart_html = f"""
     "theme": "light",
     "style": "1",
     "locale": "en",
-    "toolbar_bg": "#f8f9fa",
+    "toolbar_bg": "#FFFFFF",
     "enable_publishing": false,
     "allow_symbol_change": true,
     "container_id": "tradingview_chart"
@@ -270,23 +225,23 @@ chart_html = f"""
   </script>
 </div>
 """
-st.components.v1.html(chart_html, height=520)
+st.components.v1.html(chart_html, height=540)
 
-st.markdown("---")
+st.markdown("<br>", unsafe_allow_html=True)
 
 # --- Notepad Section ---
-st.subheader("📝 Trading Notepad")
+st.markdown("### 📝 Strategy & Notes")
 if 'notepad_content' not in st.session_state:
     st.session_state.notepad_content = ""
 
-note_text = st.text_area("Notes Area", value=st.session_state.notepad_content, height=120, label_visibility="collapsed")
+note_text = st.text_area("Notes Area", value=st.session_state.notepad_content, height=130, label_visibility="collapsed", placeholder="Write down your trading plans, entry points, or targets here...")
 
-col_n1, col_n2 = st.columns(2)
+col_n1, col_n2, col_n3 = st.columns([1, 1, 4])
 with col_n1:
-    if st.button("Save Notes", use_container_width=True):
+    if st.button("💾 Save Notes", use_container_width=True):
         st.session_state.notepad_content = note_text
-        st.success("Notes saved successfully!")
+        st.success("Saved!")
 with col_n2:
-    if st.button("Clear Notes", use_container_width=True):
+    if st.button("🗑️ Clear", use_container_width=True):
         st.session_state.notepad_content = ""
         st.rerun()
