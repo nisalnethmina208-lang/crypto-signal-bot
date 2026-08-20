@@ -3,32 +3,29 @@ import requests
 
 st.set_page_config(page_title="Binance Signal App VIP", page_icon="👑", layout="wide")
 
-# --- Password Protection Function ---
+# --- Password Protection Function (Only Password) ---
 def check_password():
-    """Returns `True` if the user had the correct password."""
+    """Returns `True` if the user entered the correct password."""
     
     def password_entered():
-        if st.session_state["username"] == "admin" and st.session_state["password"] == "vip123":
+        if st.session_state["password"] == "1234Binance@":
             st.session_state["password_correct"] = True
             del st.session_state["password"]  # don't store password
-            del st.session_state["username"]
         else:
             st.session_state["password_correct"] = False
 
     if "password_correct" not in st.session_state:
-        # First run, show inputs for username and password.
+        # First run, show input for password.
         st.markdown("## 👑 VIP App Login")
-        st.text_input("Username", key="username")
-        st.text_input("Password", type="password", key="password")
+        st.text_input("Enter Password", type="password", key="password")
         st.button("Login", on_click=password_entered)
         return False
     elif not st.session_state["password_correct"]:
         # Password incorrect, show input + error.
         st.markdown("## 👑 VIP App Login")
-        st.text_input("Username", key="username")
-        st.text_input("Password", type="password", key="password")
+        st.text_input("Enter Password", type="password", key="password")
         st.button("Login", on_click=password_entered)
-        st.error("😕 User ID or Password incorrect")
+        st.error("😕 Incorrect Password")
         return False
     else:
         # Password correct.
