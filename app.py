@@ -44,18 +44,16 @@ st.markdown("""
     </style>
 """, unsafe_allow_html=True)
 
-# --- Binance API Fetcher for Price & Klines (RSI Calculation) ---
-@st.cache_data(ttl=60)
+# --- Binance API Fetcher (Optimized for selected coin only) ---
+@st.cache_data(ttl=120)
 def get_binance_data(symbol):
     try:
-        # Get 24hr ticker price
         ticker_url = f"https://api.binance.com/api/v3/ticker/24hr?symbol={symbol}"
         t_res = requests.get(ticker_url, timeout=5).json()
         
         price = float(t_res['lastPrice'])
         change = float(t_res['priceChangePercent'])
         
-        # Get klines (candles) for 15m interval to calculate RSI
         klines_url = f"https://api.binance.com/api/v3/klines?symbol={symbol}&interval=15m&limit=50"
         k_res = requests.get(klines_url, timeout=5).json()
         
@@ -65,7 +63,6 @@ def get_binance_data(symbol):
         ])
         df['close'] = df['close'].astype(float)
         
-        # Calculate RSI (14)
         delta = df['close'].diff()
         gain = (delta.where(delta > 0, 0)).rolling(window=14).mean()
         loss = (-delta.where(delta < 0, 0)).rolling(window=14).mean()
@@ -77,45 +74,66 @@ def get_binance_data(symbol):
     except Exception as e:
         return None, None, None
 
-# Sidebar with Clean Coins List
+# Sidebar with 150+ Coins List
 with st.sidebar:
     st.markdown("### 👑 VIP Menu")
     page = st.selectbox("Navigation", ["Live Signal", "Notepad"])
     
     coins = {
-        "BTC/USDT": "BTCUSDT",
-        "ETH/USDT": "ETHUSDT",
-        "BNB/USDT": "BNBUSDT",
-        "SOL/USDT": "SOLUSDT",
-        "XRP/USDT": "XRPUSDT",
-        "ADA/USDT": "ADAUSDT",
-        "DOGE/USDT": "DOGEUSDT",
-        "AVAX/USDT": "AVAXUSDT",
-        "TRX/USDT": "TRXUSDT",
-        "DOT/USDT": "DOTUSDT",
-        "LINK/USDT": "LINKUSDT",
-        "UNI/USDT": "UNIUSDT",
-        "MATIC/USDT": "MATICUSDT",
-        "NEAR/USDT": "NEARUSDT",
-        "APT/USDT": "APTUSDT",
-        "FTM/USDT": "FTMUSDT",
-        "ICP/USDT": "ICPUSDT",
-        "RENDER/USDT": "RENDERUSDT",
-        "INJ/USDT": "INJUSDT",
-        "TIA/USDT": "TIAUSDT",
-        "ARB/USDT": "ARBUSDT",
-        "OP/USDT": "OPUSDT",
-        "SUI/USDT": "SUIUSDT",
-        "PEPE/USDT": "PEPEUSDT",
-        "SHIB/USDT": "SHIBUSDT",
-        "FLOKI/USDT": "FLOKIUSDT",
-        "BONK/USDT": "BONKUSDT",
-        "WIF/USDT": "WIFUSDT",
-        "JUP/USDT": "JUPUSDT",
-        "ONDO/USDT": "ONDOUSDT",
-        "PENDLE/USDT": "PENDLEUSDT",
-        "FET/USDT": "FETUSDT",
-        "RNDR/USDT": "RNDRUSDT"
+        # --- Major Coins ---
+        "BTC/USDT": "BTCUSDT", "ETH/USDT": "ETHUSDT", "BNB/USDT": "BNBUSDT", "SOL/USDT": "SOLUSDT",
+        "XRP/USDT": "XRPUSDT", "ADA/USDT": "ADAUSDT", "DOGE/USDT": "DOGEUSDT", "AVAX/USDT": "AVAXUSDT",
+        "TRX/USDT": "TRXUSDT", "DOT/USDT": "DOTUSDT", "LINK/USDT": "LINKUSDT", "UNI/USDT": "UNIUSDT",
+        "MATIC/USDT": "MATICUSDT", "NEAR/USDT": "NEARUSDT", "APT/USDT": "APTUSDT", "FTM/USDT": "FTMUSDT",
+        "ICP/USDT": "ICPUSDT", "RENDER/USDT": "RENDERUSDT", "INJ/USDT": "INJUSDT", "TIA/USDT": "TIAUSDT",
+        "ARB/USDT": "ARBUSDT", "OP/USDT": "OPUSDT", "SUI/USDT": "SUIUSDT", "PEPE/USDT": "PEPEUSDT",
+        "SHIB/USDT": "SHIBUSDT", "FLOKI/USDT": "FLOKIUSDT", "BONK/USDT": "BONKUSDT", "WIF/USDT": "WIFUSDT",
+        "JUP/USDT": "JUPUSDT", "ONDO/USDT": "ONDOUSDT", "PENDLE/USDT": "PENDLEUSDT", "FET/USDT": "FETUSDT",
+        
+        # --- Layer 1 & Layer 2 ---
+        "ATOM/USDT": "ATOMUSDT", "LTC/USDT": "LTCUSDT", "XLM/USDT": "XLMUSDT", "BCH/USDT": "BCHUSDT",
+        "ALGO/USDT": "ALGOUSDT", "VET/USDT": "VETUSDT", "GRT/USDT": "GRTUSDT", "HBAR/USDT": "HBARUSDT",
+        "STX/USDT": "STXUSDT", "SEI/USDT": "SEIUSDT", "KAS/USDT": "KASUSDT", "MINA/USDT": "MINAUSDT",
+        "CFX/USDT": "CFXUSDT", "ROSE/USDT": "ROSEUSDT", "EGLD/USDT": "EGLDUSDT", "FLOW/USDT": "FLOWUSDT",
+        "EOS/USDT": "EOSUSDT", "XTZ/USDT": "XTZUSDT", "KAVA/USDT": "KAVAUSDT", "RLC/USDT": "RLCUSDT",
+        "ZIL/USDT": "ZILUSDT", "ICX/USDT": "ICXUSDT", "IOST/USDT": "IOSTUSDT", "ONT/USDT": "ONTUSDT",
+        "QTUM/USDT": "QTUMUSDT", "ZEC/USDT": "ZECUSDT", "DASH/USDT": "DASHUSDT", "XMR/USDT": "XMRUSDT",
+        
+        # --- DeFi & Governance ---
+        "AAVE/USDT": "AAVEUSDT", "MKR/USDT": "MKRUSDT", "SNX/USDT": "SNXUSDT", "CRV/USDT": "CRVUSDT",
+        "COMP/USDT": "COMPUSDT", "SUSHI/USDT": "SUSHIUSDT", "CAKE/USDT": "CAKEUSDT", "1INCH/USDT": "1INCHUSDT",
+        "LDO/USDT": "LDOUSDT", "FXS/USDT": "FXSUSDT", "GMX/USDT": "GMXUSDT", "DYDX/USDT": "DYDXUSDT",
+        "PERP/USDT": "PERPUSDT", "BAL/USDT": "BALUSDT", "LRC/USDT": "LRCUSDT", "KNC/USDT": "KNCUSDT",
+        "ZRX/USDT": "ZRXUSDT", "BAT/USDT": "BATUSDT", "ENJ/USDT": "ENJUSDT", "CHZ/USDT": "CHZUSDT",
+        
+        # --- Metaverse, Gaming & NFT ---
+        "SAND/USDT": "SANDUSDT", "MANA/USDT": "MANAUSDT", "AXS/USDT": "AXSUSDT", "GALA/USDT": "GALAUSDT",
+        "APE/USDT": "APEUSDT", "ILV/USDT": "ILVUSDT", "YGG/USDT": "YGGUSDT", "HIGH/USDT": "HIGHUSDT",
+        "MAGIC/USDT": "MAGICUSDT", "TLM/USDT": "TLMUSDT", "ALICE/USDT": "ALICEUSDT", "VOXEL/USDT": "VOXELUSDT",
+        
+        # --- AI & Big Data ---
+        "AGIX/USDT": "AGIXUSDT", "OCEAN/USDT": "OCEANUSDT", "RNDR/USDT": "RNDRUSDT", "NMR/USDT": "NMRUSDT",
+        "CTSI/USDT": "CTSIUSDT", "API3/USDT": "API3USDT", "ID/USDT": "IDUSDT", "AI/USDT": "AIUSDT",
+        "WLD/USDT": "WLDUSDT", "NFP/USDT": "NFPUSDT", "PORTAL/USDT": "PORTALUSDT", "CYBER/USDT": "CYBERUSDT",
+        
+        # --- Meme & Community ---
+        "MEME/USDT": "MEMEUSDT", "BOME/USDT": "BOMEUSDT", "SLP/USDT": "SLPUSDT", "DOGS/USDT": "DOGSUSDT",
+        "CATI/USDT": "CATIUSDT", "HMSTR/USDT": "HMSTRUSDT", "NEIRO/USDT": "NEIROUSDT", "TURBO/USDT": "TURBOUSDT",
+        
+        # --- Launchpool & New Tokens ---
+        "STRK/USDT": "STRKUSDT", "PIXEL/USDT": "PIXELUSDT", "PORT3/USDT": "PORT3USDT", "MANTA/USDT": "MANTAUSDT",
+        "ALT/USDT": "ALTUSDT", "DYM/USDT": "DYMUSDT", "MAV/USDT": "MAVUSDT", "RDNT/USDT": "RDNTUSDT",
+        "ARKM/USDT": "ARKMUSDT", "POLYX/USDT": "POLYXUSDT", "SSV/USDT": "SSVUSDT", "ACH/USDT": "ACHUSDT",
+        
+        # --- Infrastructure & Others ---
+        "THETA/USDT": "THETAUSDT", "STORJ/USDT": "STORJUSDT", "ANKR/USDT": "ANKRUSDT", "PYTH/USDT": "PYTHUSDT",
+        "ZRO/USDT": "ZROUSDT", "BLUR/USDT": "BLURUSDT", "ACE/USDT": "ACEUSDT", "XAI/USDT": "XAIUSDT",
+        "COMBO/USDT": "COMBOUSDT", "STG/USDT": "STGUSDT", "LQTY/USDT": "LQTYUSDT", "AGLD/USDT": "AGLDUSDT",
+        "SYS/USDT": "SYSUSDT", "LSK/USDT": "LSKUSDT", "HIVE/USDT": "HIVEUSDT", "POWR/USDT": "POWRUSDT",
+        "BLZ/USDT": "BLZUSDT", "SUPER/USDT": "SUPERUSDT", "BAKE/USDT": "BAKEUSDT", "TKO/USDT": "TKOUSDT",
+        "PUNDIX/USDT": "PUNDIXUSDT", "SUN/USDT": "SUNUSDT", "JST/USDT": "JSTUSDT", "REEF/USDT": "REEFUSDT",
+        "AR/USDT": "ARUSDT", "WOO/USDT": "WOOUSDT", "GNO/USDT": "GNOUSDT", "CVX/USDT": "CVXUSDT",
+        "PEOPLE/USDT": "PEOPLEUSDT", "SPELL/USDT": "SPELLUSDT", "JOE/USDT": "JOEUSDT", "IMX/USDT": "IMXUSDT"
     }
     
     sel = st.selectbox("Select Coin Pair", list(coins.keys()))
@@ -127,9 +145,7 @@ price, change, rsi = get_binance_data(binance_sym)
 if price is None:
     price, change, rsi = 0.0, 0.0, 50.0
 
-# Smart Signal Logic based on RSI & Trend
-# RSI < 40 -> Oversold (Strong Buy Opportunity)
-# RSI > 60 -> Overbought (Strong Sell Opportunity)
+# Smart Signal Logic based on RSI
 if rsi < 42:
     signal_type = "STRONG BUY 🚀"
     signal_color = "#10B981"
@@ -140,7 +156,7 @@ else:
     signal_type = "NEUTRAL / HOLD ⚖️"
     signal_color = "#F59E0B"
 
-# App Header (VIP Title)
+# App Header
 st.markdown('<p class="vip-header">👑 Binance Signal App VIP <span class="vip-badge">Pro RSI Engine</span></p>', unsafe_allow_html=True)
 st.markdown(f'<p class="sub-desc">Advanced technical signals powered by <b>Binance Live API & RSI Indicator</b> for <b>{sel}</b>.</p>', unsafe_allow_html=True)
 
