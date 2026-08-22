@@ -3,36 +3,33 @@ import requests
 
 st.set_page_config(page_title="Binance Signal App VIP", page_icon="👑", layout="wide")
 
-# --- Password Protection Function (Only Password) ---
+# --- Password Protection Function ---
 def check_password():
     """Returns `True` if the user entered the correct password."""
     
     def password_entered():
         if st.session_state["password"] == "1234Binance@":
             st.session_state["password_correct"] = True
-            del st.session_state["password"]  # don't store password
+            del st.session_state["password"]
         else:
             st.session_state["password_correct"] = False
 
     if "password_correct" not in st.session_state:
-        # First run, show input for password.
         st.markdown("## 👑 VIP App Login")
         st.text_input("Enter Password", type="password", key="password")
         st.button("Login", on_click=password_entered)
         return False
     elif not st.session_state["password_correct"]:
-        # Password incorrect, show input + error.
         st.markdown("## 👑 VIP App Login")
         st.text_input("Enter Password", type="password", key="password")
         st.button("Login", on_click=password_entered)
         st.error("😕 Incorrect Password")
         return False
     else:
-        # Password correct.
         return True
 
 if not check_password():
-    st.stop()  # Do not render the rest of the app if password is wrong
+    st.stop()
 
 # Compact & VIP Styled CSS
 st.markdown("""
@@ -48,20 +45,63 @@ st.markdown("""
 """, unsafe_allow_html=True)
 
 @st.cache_data(ttl=300)
-def get_data(cid):
+def get_coingecko_data(cid):
     try:
         url = f"https://api.coingecko.com/api/v3/simple/price?ids={cid}&vs_currencies=usd&include_24hr_change=true"
-        return requests.get(url, timeout=5).json()
+        response = requests.get(url, timeout=5)
+        if response.status_code == 200:
+            return response.json()
+        return None
     except:
         return None
 
-# Sidebar with 200+ Coins List
+@st.cache_data(ttl=300)
+def get_binance_klines(symbol):
+    """Binance API එකෙන් පසුගිය ඉතිහාස දත්ත (Candles) ලබාගෙන තාක්ෂණික දර්ශක (RSI, MA) ගණනය කිරීම"""
+    try:
+        # Binance symbol format: BTCUSDT
+        clean_sym = symbol.replace("BINANCE:", "")
+        url = f"https://api.binance.com/api/v3/klines?symbol={clean_sym}&interval=1h&limit=50"
+        res = requests.get(url, timeout=5)
+        if res.status_code == 200:
+            data = res.json()
+            closes = [float(x[4]) for x in data] # Closing prices
+            
+            # Simple RSI Calculation (14 period)
+            gains, losses = [], []
+            for i in range(1, len(closes)):
+                diff = closes[i] - closes[i-1]
+                if diff >= 0:
+                    gains.append(diff)
+                    losses.append(0)
+                else:
+                    gains.append(0)
+                    losses.append(abs(diff))
+            
+            avg_gain = sum(gains[-14:]) / 14 if len(gains) >= 14 else 1
+            avg_loss = sum(losses[-14:]) / 14 if len(losses) >= 14 else 1
+            
+            if avg_loss == 0:
+                rsi = 100
+            else:
+                rs = avg_gain / avg_loss
+                rsi = 100 - (100 / (1 + rs))
+            
+            # Moving Averages (EMA approximation using simple averages for robustness)
+            ma9 = sum(closes[-9:]) / 9
+            ma21 = sum(closes[-21:]) / 21
+            
+            return rsi, ma9, ma21, closes[-1]
+        return None, None, None, None
+    except:
+        return None, None, None, None
+
+# Sidebar with Coins List
 with st.sidebar:
     st.markdown("### 👑 VIP Menu")
     page = st.selectbox("Navigation", ["Live Signal", "Notepad"])
     
     coins = {
-        # --- Major & Top Coins ---
         "BTC/USDT": {"id": "bitcoin", "sym": "BINANCE:BTCUSDT"},
         "ETH/USDT": {"id": "ethereum", "sym": "BINANCE:ETHUSDT"},
         "BNB/USDT": {"id": "binancecoin", "sym": "BINANCE:BNBUSDT"},
@@ -260,32 +300,55 @@ with st.sidebar:
         "PEOPLE/USDT": {"id": "constitutiondao", "sym": "BINANCE:PEOPLEUSDT"},
         "SPELL/USDT": {"id": "spell-token", "sym": "BINANCE:SPELLUSDT"},
         "JOE/USDT": {"id": "trader-joe", "sym": "BINANCE:JOEUSDT"},
-        "100RATS/USDT": {"id": "immutable-x", "sym": "BINANCE:IMXUSDT"}
+        "1000RATS/USDT": {"id": "rats-ordinals", "sym": "BINANCE:1000RATSUSDT"}
     }
     
     sel = st.selectbox("Select Coin Pair", list(coins.keys()))
     cid, tv_sym = coins[sel]["id"], coins[sel]["sym"]
 
-data = get_data(cid)
-price = data[cid]['usd'] if data and cid in data else 0.0
-change = data[cid]['usd_24h_change'] if data and cid in data else 0.0
-up = change >= 0
+# Data Fetching
+cg_data = get_coingecko_data(cid)
+price = cg_data[cid]['usd'] if cg_data and cid in cg_data else 0.0
+change = cg_data[cid]['usd_24h_change'] if cg_data and cid in cg_data else 0.0
+
+rsi, ma9, ma21, _ = get_binance_klines(tv_sym)
+
+# Smart Signal Logic based on RSI & Moving Averages
+# BUY: RSI < 45 (Oversold/Good entry) AND MA9 > MA21 (Uptrend)
+# SELL: RSI > 55 (Overbought) OR MA9 < MA21 (Downtrend)
+if rsi is not None and ma9 is not None and ma21 is not None:
+    if rsi < 48 and ma9 >= ma21:
+        signal = "BUY 🚀"
+        sig_color = "#10B981"
+    elif rsi > 52 or ma9 < ma21:
+        signal = "SELL 🔻"
+        sig_color = "#EF4444"
+    else:
+        signal = "HOLD / NEUTRAL ⚖️"
+        sig_color = "#F59E0B"
+else:
+    # Fallback if API fails
+    signal = "BUY 🚀" if change >= 0 else "SELL 🔻"
+    sig_color = "#10B981" if change >= 0 else "#EF4444"
+
+is_buy = "BUY" in signal
 
 # App Header (VIP Title)
 st.markdown('<p class="vip-header">👑 Binance Signal App VIP <span class="vip-badge">VIP Pro</span></p>', unsafe_allow_html=True)
-st.markdown(f'<p class="sub-desc">Real-time automated technical signals and targets for <b>{sel}</b>.</p>', unsafe_allow_html=True)
+st.markdown(f'<p class="sub-desc">Advanced technical indicator signals (RSI & MA) and targets for <b>{sel}</b>.</p>', unsafe_allow_html=True)
 
 if page == "Live Signal":
     col1, col2 = st.columns([3, 1])
     with col1:
-        st.markdown(f"**Price:** ${price:,.4f} | **24h Change:** <span style='color: {'#059669' if up else '#DC2626'};'>{change:,.2f}%</span>", unsafe_allow_html=True)
+        rsi_display = f"{rsi:.1f}" if rsi else "N/A"
+        st.markdown(f"**Price:** ${price:,.4f} | **24h Change:** <span style='color: {'#059669' if change >= 0 else '#DC2626'};'>{change:,.2f}%</span> | **RSI (14):** <b>{rsi_display}</b>", unsafe_allow_html=True)
     with col2:
-        st.markdown(f'<div class="signal-box" style="background: {"#10B981" if up else "#EF4444"};">{"BUY 🚀" if up else "SELL 🔻"}</div>', unsafe_allow_html=True)
+        st.markdown(f'<div class="signal-box" style="background: {sig_color};">{signal}</div>', unsafe_allow_html=True)
 
-    # TP / SL Compact Cards
-    tp1 = price * (1.015 if up else 0.985)
-    tp2 = price * (1.035 if up else 0.965)
-    sl = price * (0.992 if up else 1.008)
+    # TP / SL Dynamic Calculations based on market trend
+    tp1 = price * (1.02 if is_buy else 0.98)
+    tp2 = price * (1.04 if is_buy else 0.96)
+    sl = price * (0.99 if is_buy else 1.01)
 
     st.markdown("<br>", unsafe_allow_html=True)
     c1, c2, c3, c4 = st.columns(4)
@@ -296,7 +359,7 @@ if page == "Live Signal":
 
     st.markdown("<br>", unsafe_allow_html=True)
     
-    # Small TradingView Chart
+    # TradingView Chart
     chart_html = f"""
     <div class="tradingview-widget-container" style="height:350px;width:100%">
       <div id="tv_chart" style="height:100%;width:100%"></div>
