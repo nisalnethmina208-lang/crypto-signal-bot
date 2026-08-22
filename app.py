@@ -260,7 +260,7 @@ with st.sidebar:
         "PEOPLE/USDT": {"id": "constitutiondao", "sym": "BINANCE:PEOPLEUSDT"},
         "SPELL/USDT": {"id": "spell-token", "sym": "BINANCE:SPELLUSDT"},
         "JOE/USDT": {"id": "trader-joe", "sym": "BINANCE:JOEUSDT"},
-        "IMX/USDT": {"id": "immutable-x", "sym": "BINANCE:IMXUSDT"}
+        "100RATS/USDT": {"id": "immutable-x", "sym": "BINANCE:IMXUSDT"}
     }
     
     sel = st.selectbox("Select Coin Pair", list(coins.keys()))
