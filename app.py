@@ -44,18 +44,23 @@ st.markdown("""
     </style>
 """, unsafe_allow_html=True)
 
-# --- Binance API Fetcher (Optimized for selected coin only) ---
-@st.cache_data(ttl=120)
+# --- Binance API Fetcher (Updated & Fixed) ---
+@st.cache_data(ttl=30)
 def get_binance_data(symbol):
     try:
+        headers = {'User-Agent': 'Mozilla/5.0'}
         ticker_url = f"https://api.binance.com/api/v3/ticker/24hr?symbol={symbol}"
-        t_res = requests.get(ticker_url, timeout=5).json()
+        t_res = requests.get(ticker_url, headers=headers, timeout=10)
         
-        price = float(t_res['lastPrice'])
-        change = float(t_res['priceChangePercent'])
+        if t_res.status_code != 200:
+            return None, None, None
+            
+        t_data = t_res.json()
+        price = float(t_data['lastPrice'])
+        change = float(t_data['priceChangePercent'])
         
         klines_url = f"https://api.binance.com/api/v3/klines?symbol={symbol}&interval=15m&limit=50"
-        k_res = requests.get(klines_url, timeout=5).json()
+        k_res = requests.get(klines_url, headers=headers, timeout=10).json()
         
         df = pd.DataFrame(k_res, columns=[
             'open_time', 'open', 'high', 'low', 'close', 'volume',
@@ -143,6 +148,7 @@ with st.sidebar:
 price, change, rsi = get_binance_data(binance_sym)
 
 if price is None:
+    st.warning("⚠️ Binance API එකෙන් දත්ත ලබාගැනීමේදී බාධාවක් ඇති විය. කරුණාකර මොහොතකින් නැවත උත්සාහ කරන්න හෝ Refresh කරන්න.")
     price, change, rsi = 0.0, 0.0, 50.0
 
 # Smart Signal Logic based on RSI
