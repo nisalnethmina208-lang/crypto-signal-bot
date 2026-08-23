@@ -92,20 +92,20 @@ def calculate_advanced_indicators(df):
     df['swing_low'] = low.rolling(window=5).min()
     
     current_close = close.iloc[-1]
-    prev_high = df['swing_high'].iloc[-2]
-    prev_low = df['swing_low'].iloc[-2]
+    prev_high = df['swing_high'].iloc[-2] if len(df) >= 2 else high.iloc[-1]
+    prev_low = df['swing_low'].iloc[-2] if len(df) >= 2 else low.iloc[-1]
     
     bos_bullish = current_close > prev_high
     bos_bearish = current_close < prev_low
     
-    bullish_ob = (current_close > open_p.iloc[-1]) and (close.iloc[-2] < open_p.iloc[-2])
-    bearish_ob = (current_close < open_p.iloc[-1]) and (close.iloc[-2] > open_p.iloc[-2])
+    bullish_ob = (current_close > open_p.iloc[-1]) and (close.iloc[-2] < open_p.iloc[-2]) if len(df) >= 2 else False
+    bearish_ob = (current_close < open_p.iloc[-1]) and (close.iloc[-2] > open_p.iloc[-2]) if len(df) >= 2 else False
 
     bullish_fvg = (low.iloc[-1] > high.iloc[-3]) if len(df) >= 3 else False
     bearish_fvg = (high.iloc[-1] < low.iloc[-3]) if len(df) >= 3 else False
 
-    liquidity_sweep_buy = (low.iloc[-1] < df['swing_low'].rolling(window=10).min().iloc[-2]) and (current_close > open_p.iloc[-1])
-    liquidity_sweep_sell = (high.iloc[-1] > df['swing_high'].rolling(window=10).max().iloc[-2]) and (current_close < open_p.iloc[-1])
+    liquidity_sweep_buy = (low.iloc[-1] < df['swing_low'].rolling(window=10).min().iloc[-2]) and (current_close > open_p.iloc[-1]) if len(df) >= 10 else False
+    liquidity_sweep_sell = (high.iloc[-1] > df['swing_high'].rolling(window=10).max().iloc[-2]) and (current_close < open_p.iloc[-1]) if len(df) >= 10 else False
 
     range_high = high.rolling(window=20).max().iloc[-1]
     range_low = low.rolling(window=20).min().iloc[-1]
@@ -123,7 +123,7 @@ def calculate_advanced_indicators(df):
     buying_pressure = current_close > open_p.iloc[-1] and high_volume_spike
     selling_pressure = current_close < open_p.iloc[-1] and high_volume_spike
 
-    price_diff_5 = close.diff(5).iloc[-1]
+    price_diff_5 = close.diff(5).iloc[-1] if len(df) >= 5 else 0
     elliott_wave_phase = "Impulse Wave (Trend Continuing)" if price_diff_5 != 0 else "Correction Phase"
     elliott_bullish = price_diff_5 > 0
     elliott_bearish = price_diff_5 < 0
@@ -151,7 +151,7 @@ def calculate_advanced_indicators(df):
         "elliott_bearish": elliott_bearish
     }
 
-# Sidebar with Full 235+ Coins List
+# Sidebar with Optimized 210 Coins List
 with st.sidebar:
     st.markdown("### 👑 VIP Menu (Advanced Master)")
     page = st.selectbox("පිටුව තෝරන්න (Navigation)", ["Live Signal", "Advanced Analytics", "Notepad"])
@@ -339,9 +339,11 @@ if df is not None and not df.empty:
     
     score = 0
     
+    # EMA Trend Scoring
     if ind["ema9"] > ind["ema21"]: score += 1
     else: score -= 1
 
+    # SMC & ICT Scoring with Strict Zone Rules
     if ind["bos_bullish"]: score += 2
     if ind["bos_bearish"]: score -= 2
     if ind["bullish_ob"]: score += 2
@@ -357,22 +359,23 @@ if df is not None and not df.empty:
     if ind["elliott_bullish"]: score += 1
     if ind["elliott_bearish"]: score -= 1
 
-    # Zone Correction Logic
+    # Zone Correction Logic (Ensures accurate BUY in Discount & SELL in Premium)
     if "Discount" in ind["zone"]:
         score += 2
     else:
         score -= 2
 
-    if score >= 5:
+    # Signal Categorization
+    if score >= 4:
         signal = "STRONG BUY (Advanced Verified) 🚀"
         sig_color = "#10B981"
-    elif score >= 2:
+    elif score >= 1:
         signal = "BUY (Bullish Momentum) 📈"
         sig_color = "#34D399"
-    elif score <= -5:
+    elif score <= -4:
         signal = "STRONG SELL (Advanced Verified) 🔻"
         sig_color = "#EF4444"
-    elif score <= -2:
+    elif score <= -1:
         signal = "SELL (Bearish Momentum) 📉"
         sig_color = "#F87171"
     else:
@@ -381,11 +384,11 @@ if df is not None and not df.empty:
 
     is_buy = "BUY" in signal
 else:
-    st.error("දත්ත ලබා ගැනීම අසාර්ථක විය.")
+    st.error("දත්ත ලබා ගැනීම අසාර්ථක විය. කරුණාකර නැවත උත්සාහ කරන්න.")
     st.stop()
 
 st.markdown(f'<p class="vip-header">👑 Binance Pro Signal App <span class="vip-badge">Advanced Master</span></p>', unsafe_allow_html=True)
-st.markdown(f'<p class="sub-desc"><b>{sel}</b> සඳහා SMC, ICT, Elliott Wave සහ Volume දත්ත පදනම් කර සකස් කළ සංඥා පද්ධතිය.</p>', unsafe_allow_html=True)
+st.markdown(f'<p class="sub-desc"><b>{sel}</b> සඳහා SMC, ICT, Elliott Wave සහ Volume දත්ත පදනම් කර සකස් කළ ස්වයංක්‍රීය සංඥා පද්ධතිය.</p>', unsafe_allow_html=True)
 
 if page == "Live Signal":
     col1, col2 = st.columns([3, 1])
@@ -412,8 +415,9 @@ if page == "Live Signal":
 
     st.markdown("<br>", unsafe_allow_html=True)
     
+    # TradingView Live Chart
     chart_html = f"""
-    <div class="tradingview-widget-container" style="height:400px;width:100%">
+    <div class="tradingview-widget-container" style="height:420px;width:100%">
       <div id="tv_chart" style="height:100%;width:100%"></div>
       <script type="text/javascript" src="https://s3.tradingview.com/tv.js"></script>
       <script type="text/javascript">
@@ -421,7 +425,21 @@ if page == "Live Signal":
       </script>
     </div>
     """
-    st.components.v1.html(chart_html, height=410)
+    st.components.v1.html(chart_html, height=430)
+
+    # --- Live Indicators Analysis Dashboard Under the Chart ---
+    st.markdown("### 🔍 ප්‍රස්ථාරය යටතේ සජීවී විශ්ලේෂණ පුවරුව (Indicator Analysis Panel)")
+    
+    ac1, ac2, ac3 = st.columns(3)
+    with ac1:
+        st.info(f"**Market Zone:** {ind['zone']}")
+        st.info(f"**Elliott Wave:** {ind['elliott_phase']}")
+    with ac2:
+        st.success(f"**Order Blocks (OB):** {'Bullish OB හඳුනාගෙන ඇත' if ind['bullish_ob'] else ('Bearish OB හඳුනාගෙන ඇත' if ind['bearish_ob'] else 'සාමාන්‍යයි')}")
+        st.warning(f"**Fair Value Gap (FVG):** {'ක්‍රියාකාරීයි' if (ind['bullish_fvg'] or ind['bearish_fvg']) else 'නැත'}")
+    with ac3:
+        st.error(f"**Liquidity Sweep:** {'සිදු වී ඇත (Stop Hunt)' if (ind['liquidity_sweep_buy'] or ind['liquidity_sweep_sell']) else 'නැත'}")
+        st.metric(label="RSI අගය", value=f"{ind['rsi']:.2f}")
 
 elif page == "Advanced Analytics":
     st.markdown("### 📊 උසස් වෙළඳ විශ්ලේෂණය (Advanced Market Analytics)", unsafe_allow_html=True)
