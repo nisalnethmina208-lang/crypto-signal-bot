@@ -94,20 +94,18 @@ def calculate_indicators(df):
     upper_band = sma20 + (std20 * 2)
     lower_band = sma20 - (std20 * 2)
     
-    # 5. Smart Money Concepts (SMC) Logic [LuxAlgo Style approximations]
-    # Finding Market Structure Shifts (BOS / ChoCh) & Order Block zones
+    # 5. Smart Money Concepts (SMC) Logic
     df['rolling_high'] = high.rolling(window=5).max()
     df['rolling_low'] = low.rolling(window=5).min()
     
-    # Bullish / Bearish Order Blocks estimation based on impulsive moves
     bullish_ob = (close > df['open']) & (close.shift(1) < df['open'].shift(1))
     bearish_ob = (close < df['open']) & (close.shift(1) > df['open'].shift(1))
     
     smc_bias = "NEUTRAL"
     if close.iloc[-1] > df['rolling_high'].iloc[-2]:
-        smc_bias = "BULLISH_BOS" # Break of Structure upwards (Smart Money Buying)
+        smc_bias = "BULLISH_BOS" 
     elif close.iloc[-1] < df['rolling_low'].iloc[-2]:
-        smc_bias = "BEARISH_BOS" # Break of Structure downwards (Smart Money Selling)
+        smc_bias = "BEARISH_BOS" 
 
     return {
         "price": close.iloc[-1],
@@ -123,7 +121,7 @@ def calculate_indicators(df):
         "bearish_ob": bearish_ob.iloc[-1]
     }
 
-# Sidebar with Coins List
+# Sidebar with 189 Coins List
 with st.sidebar:
     st.markdown("### 👑 VIP Pro Menu")
     page = st.selectbox("Navigation", ["Live Signal", "Advanced Analytics", "Notepad"])
@@ -159,9 +157,158 @@ with st.sidebar:
         "SHIB/USDT": {"id": "shiba-inu", "sym": "BINANCE:SHIBUSDT"},
         "FLOKI/USDT": {"id": "floki", "sym": "BINANCE:FLOKIUSDT"},
         "BONK/USDT": {"id": "bonk", "sym": "BINANCE:BONKUSDT"},
+        "SAGA/USDT": {"id": "saga-2", "sym": "BINANCE:SAGAUSDT"},
+        "ENA/USDT": {"id": "ethena", "sym": "BINANCE:ENAUSDT"},
+        "WLD/USDT": {"id": "worldcoin-wld", "sym": "BINANCE:WLDUSDT"},
+        "STRK/USDT": {"id": "starknet", "sym": "BINANCE:STRKUSDT"},
+        "PORTAL/USDT": {"id": "portal", "sym": "BINANCE:PORTALUSDT"},
+        "PIXEL/USDT": {"id": "pixels", "sym": "BINANCE:PIXELUSDT"},
+        "AXL/USDT": {"id": "axelar", "sym": "BINANCE:AXLUSDT"},
+        "ALT/USDT": {"id": "altlayer", "sym": "BINANCE:ALTUSDT"},
+        "MANTA/USDT": {"id": "manta-network", "sym": "BINANCE:MANTAUSDT"},
+        "JUP/USDT": {"id": "jupiter", "sym": "BINANCE:JUPUSDT"},
+        "DYM/USDT": {"id": "dymension", "sym": "BINANCE:DYMUSDT"},
+        "NFP/USDT": {"id": "nfprompt", "sym": "BINANCE:NFPUST"},
+        "AI/USDT": {"id": "sleepless-ai", "sym": "BINANCE:AIUSDT"},
+        "XAI/USDT": {"id": "xai-blockchain", "sym": "BINANCE:XAIUSDT"},
+        "ACE/USDT": {"id": "fusionist", "sym": "BINANCE:ACEUSDT"},
+        "RONIN/USDT": {"id": "ronin", "sym": "BINANCE:RONINUSDT"},
+        "PYTH/USDT": {"id": "pyth-network", "sym": "BINANCE:PYTHUSDT"},
+        "JTO/USDT": {"id": "jito", "sym": "BINANCE:JTOUSDT"},
+        "BIGTIME/USDT": {"id": "big-time", "sym": "BINANCE:BIGTIMEUSDT"},
+        "MEME/USDT": {"id": "memecoin", "sym": "BINANCE:MEMEUSDT"},
+        "ORDI/USDT": {"id": "ordi", "sym": "BINANCE:ORDIUSDT"},
+        "SATS/USDT": {"id": "sats-ordinals", "sym": "BINANCE:1000SATSUSDT"},
+        "RATS/USDT": {"id": "rats-ordinals", "sym": "BINANCE:RATSUSDT"},
+        "GALA/USDT": {"id": "gala", "sym": "BINANCE:GALAUSDT"},
+        "SAND/USDT": {"id": "the-sandbox", "sym": "BINANCE:SANDUSDT"},
+        "MANA/USDT": {"id": "decentraland", "sym": "BINANCE:MANAUSDT"},
+        "AXS/USDT": {"id": "axie-infinity", "sym": "BINANCE:AXSUSDT"},
+        "ENJ/USDT": {"id": "enjincoin", "sym": "BINANCE:ENJUSDT"},
+        "CHZ/USDT": {"id": "chiliz", "sym": "BINANCE:CHZUSDT"},
+        "GMT/usdt": {"id": "stepn", "sym": "BINANCE:GMTUSDT"},
+        "FLOW/USDT": {"id": "flow", "sym": "BINANCE:FLOWUSDT"},
+        "HBAR/USDT": {"id": "hedera-hashgraph", "sym": "BINANCE:HBARUSDT"},
+        "VET/USDT": {"id": "vechain", "sym": "BINANCE:VETUSDT"},
+        "FIL/USDT": {"id": "filecoin", "sym": "BINANCE:FILUSDT"},
+        "THETA/USDT": {"id": "theta-token", "sym": "BINANCE:THETAUSDT"},
+        "XTZ/USDT": {"id": "tezos", "sym": "BINANCE:XTZUSDT"},
+        "EOS/USDT": {"id": "eos", "sym": "BINANCE:EOSUSDT"},
+        "BCH/USDT": {"id": "bitcoin-cash", "sym": "BINANCE:BCHUSDT"},
+        "ETC/USDT": {"id": "ethereum-classic", "sym": "BINANCE:ETCUSDT"},
+        "XLM/USDT": {"id": "stellar", "sym": "BINANCE:XLMUSDT"},
+        "ALGO/USDT": {"id": "algorand", "sym": "BINANCE:ALGOUSDT"},
+        "QNT/USDT": {"id": "quant-network", "sym": "BINANCE:QNTUSDT"},
+        "CRV/USDT": {"id": "curve-dao-token", "sym": "BINANCE:CRVUSDT"},
+        "MKR/USDT": {"id": "maker", "sym": "BINANCE:MKRUSDT"},
+        "AAVE/USDT": {"id": "aave", "sym": "BINANCE:AAVEUSDT"},
+        "SNX/USDT": {"id": "synthetix-network-token", "sym": "BINANCE:SNXUSDT"},
+        "COMP/USDT": {"id": "compound-governance-token", "sym": "BINANCE:COMPUSDT"},
+        "ZRX/USDT": {"id": "0x", "sym": "BINANCE:ZRXUSDT"},
+        "BAT/USDT": {"id": "basic-attention-token", "sym": "BINANCE:BATUSDT"},
+        "KNC/USDT": {"id": "kyber-network-crystal", "sym": "BINANCE:KNCUSDT"},
+        "BAL/USDT": {"id": "balancer", "sym": "BINANCE:BALUSDT"},
+        "YFI/USDT": {"id": "yearn-finance", "sym": "BINANCE:YFIUSDT"},
+        "SUSHI/USDT": {"id": "sushi", "sym": "BINANCE:SUSHIUSDT"},
+        "1INCH/USDT": {"id": "1inch", "sym": "BINANCE:1INCHUSDT"},
+        "RUNE/USDT": {"id": "thorchain", "sym": "BINANCE:RUNEUSDT"},
+        "KAVA/USDT": {"id": "kava", "sym": "BINANCE:KAVAUSDT"},
+        "ZIL/USDT": {"id": "zilliqa", "sym": "BINANCE:ZILUSDT"},
+        "IOST/USDT": {"id": "iostoken", "sym": "BINANCE:IOSTUSDT"},
+        "ICX/USDT": {"id": "icon", "sym": "BINANCE:ICXUSDT"},
+        "ONT/USDT": {"id": "ontology", "sym": "BINANCE:ONTUSDT"},
+        "IO/USDT": {"id": "io-net", "sym": "BINANCE:IOUSDT"},
+        "ZK/USDT": {"id": "zksync", "sym": "BINANCE:ZKUSDT"},
+        "LISTA/USDT": {"id": "lista-dao", "sym": "BINANCE:LISTAUSDT"},
+        "BB/USDT": {"id": "bouncebit", "sym": "BINANCE:BBUSDT"},
+        "MERL/USDT": {"id": "merlin-chain", "sym": "BINANCE:MERLUSDT"},
+        "REZ/USDT": {"id": "renzo", "sym": "BINANCE:REZUSDT"},
+        "OMNI/USDT": {"id": "omni-network", "sym": "BINANCE:OMNIUSDT"},
+        "SWELL/USDT": {"id": "swell-network", "sym": "BINANCE:SWELLUSDT"},
+        "BANANA/USDT": {"id": "banana-gun", "sym": "BINANCE:BANANAUSDT"},
+        "TON/USDT": {"id": "the-open-network", "sym": "BINANCE:TONUSDT"},
+        "HMSTR/USDT": {"id": "hamster-kombat", "sym": "BINANCE:HMSTRUSDT"},
+        "CATI/USDT": {"id": "catizen", "sym": "BINANCE:CATIUSDT"},
+        "EIGEN/USDT": {"id": "eigenlayer", "sym": "BINANCE:EIGENUSDT"},
+        "NEIRO/USDT": {"id": "neiro-ethereum", "sym": "BINANCE:NEIROUSDT"},
+        "TURBO/USDT": {"id": "turbo", "sym": "BINANCE:TURBOUSDT"},
+        "BRETT/USDT": {"id": "brett", "sym": "BINANCE:BRETTUSDT"},
+        "POPCAT/USDT": {"id": "popcat", "sym": "BINANCE:POPCATUSDT"},
+        "MEW/USDT": {"id": "cat-in-a-dogs-world", "sym": "BINANCE:MEWUSDT"},
+        "BOME/USDT": {"id": "book-of-meme", "sym": "BINANCE:BOMEUSDT"},
+        "SLERF/USDT": {"id": "slerf", "sym": "BINANCE:SLERFUSDT"},
+        "WIF/USDT": {"id": "dogwifcoin", "sym": "BINANCE:WIFUSDT"},
+        "MYRO/USDT": {"id": "myro", "sym": "BINANCE:MYROUSDT"},
+        "PNUT/USDT": {"id": "peanut-the-squirrel", "sym": "BINANCE:PNUTUSDT"},
+        "GOAT/USDT": {"id": "goatseus-maximus", "sym": "BINANCE:GOATUSDT"},
+        "ACT/USDT": {"id": "act-i-the-ai-prophecy", "sym": "BINANCE:ACTUSDT"},
+        "PENGU/USDT": {"id": "pudgy-penguins", "sym": "BINANCE:PENGUUSDT"},
+        "CHILLGUY/USDT": {"id": "just-a-chill-guy", "sym": "BINANCE:CHILLGUYUSDT"},
+        "MOVE/USDT": {"id": "movement", "sym": "BINANCE:MOVEUSDT"},
+        "ANIME/USDT": {"id": "animecoin", "sym": "BINANCE:ANIMEUSDT"},
+        "POL/USDT": {"id": "polygon-ecosystem-token", "sym": "BINANCE:POLUSDT"},
+        "STX/USDT": {"id": "stacks", "sym": "BINANCE:STXUSDT"},
+        "GNO/USDT": {"id": "gnosis", "sym": "BINANCE:GNOUSDT"},
+        "AR/USDT": {"id": "arweave", "sym": "BINANCE:ARUSDT"},
+        "LDO/USDT": {"id": "lido-dao", "sym": "BINANCE:LDOUSDT"},
+        "SSV/USDT": {"id": "ssv-network", "sym": "BINANCE:SSVUSDT"},
+        "FXS/USDT": {"id": "frax-share", "sym": "BINANCE:FXSUSDT"},
+        "PENDLE/USDT": {"id": "pendle", "sym": "BINANCE:PENDLEUSDT"},
+        "AGIX/USDT": {"id": "singularitynet", "sym": "BINANCE:AGIXUSDT"},
+        "FET/USDT": {"id": "artificial-superintelligence-alliance", "sym": "BINANCE:FETUSDT"},
+        "OCEAN/USDT": {"id": "ocean-protocol", "sym": "BINANCE:OCEANUSDT"},
+        "AGLD/USDT": {"id": "adventure-gold", "sym": "BINANCE:AGLDUSDT"},
+        "ILV/USDT": {"id": "illuvium", "sym": "BINANCE:ILVUSDT"},
+        "YGG/USDT": {"id": "yield-guild-games", "sym": "BINANCE:YGGUSDT"},
+        "MAGIC/USDT": {"id": "magic", "sym": "BINANCE:MAGICUSDT"},
+        "HIGH/USDT": {"id": "highstreet", "sym": "BINANCE:HIGHUSDT"},
+        "COMBO/USDT": {"id": "combo", "sym": "BINANCE:COMBOUSDT"},
+        "PHA/USDT": {"id": "phala-network", "sym": "BINANCE:PHAUSDT"},
+        "DAR/USDT": {"id": "mines-of-dalarnia", "sym": "BINANCE:DARUSDT"},
+        "LOKA/USDT": {"id": "league-of-kingdoms", "sym": "BINANCE:LOKAUSDT"},
+        "VOXEL/USDT": {"id": "pixels-voxel", "sym": "BINANCE:VOXELUSDT"},
+        "POLS/USDT": {"id": "polkastarter", "sym": "BINANCE:POLSUSDT"},
+        "SUPER/USDT": {"id": "superverse", "sym": "BINANCE:SUPERUSDT"},
+        "ID/USDT": {"id": "space-id", "sym": "BINANCE:IDUSDT"},
+        "HOOK/USDT": {"id": "hooked-protocol", "sym": "BINANCE:HOOKUSDT"},
+        "EDU/USDT": {"id": "open-campus", "sym": "BINANCE:EDUUSDT"},
+        "COMET/USDT": {"id": "comet", "sym": "BINANCE:COMPUSDT"},
+        "STG/USDT": {"id": "stargate-finance", "sym": "BINANCE:STGUSDT"},
+        "RDNT/USDT": {"id": "radiant-capital", "sym": "BINANCE:RDNTUSDT"},
+        "GMX/USDT": {"id": "gmx", "sym": "BINANCE:GMXUSDT"},
+        "SYN/USDT": {"id": "synapse-protocol", "sym": "BINANCE:SYNUSDT"},
+        "PROMPT/USDT": {"id": "nfprompt", "sym": "BINANCE:PROMPTUSDT"},
+        "LTC/USDT": {"id": "litecoin", "sym": "BINANCE:LTCUSDT"},
+        "BSW/USDT": {"id": "biswap", "sym": "BINANCE:BSWUSDT"},
+        "CAKE/USDT": {"id": "pancakeswap-token", "sym": "BINANCE:CAKEUSDT"},
+        "BEL/USDT": {"id": "bella-protocol", "sym": "BINANCE:BELUSDT"},
+        "CTSI/USDT": {"id": "cartesi", "sym": "BINANCE:CTSIUSDT"},
+        "MBOX/USDT": {"id": "mobox", "sym": "BINANCE:MBOXUSDT"},
+        "GHST/USDT": {"id": "aavegotchi", "sym": "BINANCE:GHSTUSDT"},
+        "COTI/USDT": {"id": "coti", "sym": "BINANCE:COTIUSDT"},
+        "API3/USDT": {"id": "api3", "sym": "BINANCE:API3USDT"},
+        "BAND/USDT": {"id": "band-protocol", "sym": "BINANCE:BANDUSDT"},
+        "TRB/USDT": {"id": "tellor", "sym": "BINANCE:TRBUSDT"},
+        "BLUR/USDT": {"id": "blur", "sym": "BINANCE:BLURUSDT"},
+        "BICO/USDT": {"id": "biconomy", "sym": "BINANCE:BICOUSDT"},
+        "ALICE/USDT": {"id": "my-neighbor-alice", "sym": "BINANCE:ALICEUSDT"},
+        "SFP/USDT": {"id": "safepal", "sym": "BINANCE:SFPUSDT"},
+        "C98/USDT": {"id": "coin98", "sym": "BINANCE:C98USDT"},
+        "OAS/USDT": {"id": "oasys", "sym": "BINANCE:OASUSDT"},
+        "PROS/USDT": {"id": "prosper", "sym": "BINANCE:PROSUSDT"},
+        "QI/USDT": {"id": "benqi", "sym": "BINANCE:QIUSDT"},
+        "IQ/USDT": {"id": "everipedia", "sym": "BINANCE:IQUSDT"},
+        "STEEM/USDT": {"id": "steem", "sym": "BINANCE:STEEMUSDT"},
+        "HIVE/USDT": {"id": "hive", "sym": "BINANCE:HIVEUSDT"},
+        "DGB/USDT": {"id": "digibyte", "sym": "BINANCE:DGBUSDT"},
+        "RVN/USDT": {"id": "ravencoin", "sym": "BINANCE:RVNUSDT"},
+        "SC/USDT": {"id": "siacoin", "sym": "BINANCE:SCUSDT"},
+        "CKB/USDT": {"id": "nervos-network", "sym": "BINANCE:CKBUSDT"},
+        "KAS/USDT": {"id": "kaspa", "sym": "BINANCE:KASUSDT"},
+        "NEXO/USDT": {"id": "nexo", "sym": "BINANCE:NEXOUSDT"}
     }
     
-    sel = st.selectbox("Select Coin Pair", list(coins.keys()))
+    sel = st.selectbox("Select Coin Pair (189+ Available)", list(coins.keys()))
     coin_id = coins[sel]["id"]
     tv_sym = coins[sel]["sym"]
 
@@ -217,7 +364,7 @@ else:
     st.stop()
 
 # App Header
-st.markdown(f'<p class="vip-header">👑 Binance Pro Signal App <span class="vip-badge">VIP AI + SMC Pro</span></p>', unsafe_allow_html=True)
+st.markdown(f'<p class="vip-header">👑 Binance Pro Signal App <span class="vip-badge">VIP AI + SMC Pro (189+ Coins)</span></p>', unsafe_allow_html=True)
 st.markdown(f'<p class="sub-desc">Multi-Indicator & <b>Smart Money Concepts (LuxAlgo Style)</b> Engine analyzing <b>{sel}</b>.</p>', unsafe_allow_html=True)
 
 if page == "Live Signal":
