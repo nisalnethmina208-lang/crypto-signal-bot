@@ -3,7 +3,7 @@ import requests
 import pandas as pd
 import numpy as np
 
-st.set_page_config(page_title="Binance Pro Signal App VIP - 197+ Coins Master", page_icon="👑", layout="wide")
+st.set_page_config(page_title="Binance Pro Signal App VIP - Advanced Master", page_icon="👑", layout="wide")
 
 # --- Password Protection Function ---
 def check_password():
@@ -56,21 +56,25 @@ def get_coingecko_market_data(coin_id):
             data = res.json()
             if 'prices' in data and len(data['prices']) > 0:
                 prices = [x[1] for x in data['prices']]
+                # වෙළඳපොළ පරිමාව (Volume) සඳහාද දත්ත ලබා ගැනීමට උත්සාහ කරමු
+                volumes = [x[1] for x in data['total_volumes']] if 'total_volumes' in data else [100000] * len(prices)
+                
                 df = pd.DataFrame(prices, columns=['close'])
+                df['volume'] = volumes[:len(df)]
                 df['open'] = df['close'].shift(1).fillna(df['close'])
                 df['high'] = df['close'] * 1.008
                 df['low'] = df['close'] * 0.992
-                df['volume'] = 100000
                 return df
         return None
     except:
         return None
 
-def calculate_smc_ict_indicators(df):
+def calculate_advanced_indicators(df):
     close = df['close']
     high = df['high']
     low = df['low']
     open_p = df['open']
+    volume = df['volume']
     
     # 1. Trend & Moving Averages
     ema9 = close.ewm(span=9, adjust=False).mean()
@@ -117,6 +121,22 @@ def calculate_smc_ict_indicators(df):
     else:
         zone = "Discount Zone (Buy Area)"
 
+    # --- NEW: VOLUME ANALYSIS ---
+    avg_volume = volume.rolling(window=14).mean().iloc[-1]
+    current_volume = volume.iloc[-1]
+    high_volume_spike = current_volume > (avg_volume * 1.5)
+
+    # --- NEW: ORDER FLOW ANALYSIS (Delta/Buying Pressure) ---
+    buying_pressure = current_close > open_p.iloc[-1] and high_volume_spike
+    selling_pressure = current_close < open_p.iloc[-1] and high_volume_spike
+
+    # --- NEW: ELLIOTT WAVE SIMPLIFIED LOGIC ---
+    # සරල තරංග රටාවක් පදනම් කර ගනිමින් Impulse හෝ Correction බව තීරණය කිරීම
+    price_diff_5 = close.diff(5).iloc[-1]
+    elliott_wave_phase = "Impulse Wave (Trend Continuing)" if price_diff_5 != 0 else "Correction Phase"
+    elliott_bullish = price_diff_5 > 0
+    elliott_bearish = price_diff_5 < 0
+
     return {
         "price": current_close,
         "ema9": ema9.iloc[-1],
@@ -131,13 +151,19 @@ def calculate_smc_ict_indicators(df):
         "bearish_fvg": bearish_fvg,
         "liquidity_sweep_buy": liquidity_sweep_buy,
         "liquidity_sweep_sell": liquidity_sweep_sell,
-        "zone": zone
+        "zone": zone,
+        "volume_spike": high_volume_spike,
+        "buying_pressure": buying_pressure,
+        "selling_pressure": selling_pressure,
+        "elliott_phase": elliott_wave_phase,
+        "elliott_bullish": elliott_bullish,
+        "elliott_bearish": elliott_bearish
     }
 
 # Sidebar with 197+ Coins
 with st.sidebar:
-    st.markdown("### 👑 VIP Menu (197+ Coins SMC/ICT)")
-    page = st.selectbox("පිටුව තෝරන්න (Navigation)", ["Live Signal", "SMC & ICT Analytics", "Notepad"])
+    st.markdown("### 👑 VIP Menu (Advanced Master)")
+    page = st.selectbox("පිටුව තෝරන්න (Navigation)", ["Live Signal", "Advanced Analytics", "Notepad"])
     
     coins = {
         "BTC/USDT": {"id": "bitcoin", "sym": "BINANCE:BTCUSDT"},
@@ -318,7 +344,7 @@ with st.sidebar:
 df = get_coingecko_market_data(coin_id)
 
 if df is not None and not df.empty:
-    ind = calculate_smc_ict_indicators(df)
+    ind = calculate_advanced_indicators(df)
     price = ind["price"]
     change = ((price - df['open'].iloc[0]) / df['open'].iloc[0]) * 100
     
@@ -337,20 +363,26 @@ if df is not None and not df.empty:
     if ind["liquidity_sweep_buy"]: score += 3
     if ind["liquidity_sweep_sell"]: score -= 3
 
+    # New Additions to Score
+    if ind["buying_pressure"]: score += 2
+    if ind["selling_pressure"]: score -= 2
+    if ind["elliott_bullish"]: score += 1
+    if ind["elliott_bearish"]: score -= 1
+
     if "Discount" in ind["zone"] and score > 0: score += 1
     elif "Premium" in ind["zone"] and score < 0: score -= 1
 
-    if score >= 5:
-        signal = "STRONG BUY (SMC/ICT සමතුලිතයි) 🚀"
+    if score >= 6:
+        signal = "STRONG BUY (Advanced Verified) 🚀"
         sig_color = "#10B981"
     elif score >= 2:
-        signal = "BUY (බුලිෂ් ප්‍රවණතාවක් ඇත) 📈"
+        signal = "BUY (Bullish Momentum) 📈"
         sig_color = "#34D399"
-    elif score <= -5:
-        signal = "STRONG SELL (SMC/ICT මඟින් තහවුරුයි) 🔻"
+    elif score <= -6:
+        signal = "STRONG SELL (Advanced Verified) 🔻"
         sig_color = "#EF4444"
     elif score <= -2:
-        signal = "SELL (බෙයාර්ලිෂ් ප්‍රවණතාවක් ඇත) 📉"
+        signal = "SELL (Bearish Momentum) 📉"
         sig_color = "#F87171"
     else:
         signal = "HOLD / බලා සිටින්න (Neutral) ⚖️"
@@ -362,8 +394,8 @@ else:
     st.stop()
 
 # App Header
-st.markdown(f'<p class="vip-header">👑 Binance Pro Signal App <span class="vip-badge">197+ Coins Master</span></p>', unsafe_allow_html=True)
-st.markdown(f'<p class="sub-desc"><b>{sel}</b> සඳහා Smart Money Concepts සහ Inner Circle Trader සංකල්ප භාවිත කර සකස් කළ සංඥා පද්ධතිය.</p>', unsafe_allow_html=True)
+st.markdown(f'<p class="vip-header">👑 Binance Pro Signal App <span class="vip-badge">Advanced Master</span></p>', unsafe_allow_html=True)
+st.markdown(f'<p class="sub-desc"><b>{sel}</b> සඳහා SMC, ICT, Elliott Wave, Order Flow සහ Volume දත්ත පදනම් කර සකස් කළ සංඥා පද්ධතිය.</p>', unsafe_allow_html=True)
 
 if page == "Live Signal":
     col1, col2 = st.columns([3, 1])
@@ -396,16 +428,16 @@ if page == "Live Signal":
     """
     st.components.v1.html(chart_html, height=410)
 
-elif page == "SMC & ICT Analytics":
-    st.markdown("### 📊 SMC & ICT ගැඹුරු විශ්ලේෂණය (Deep Analytics)", unsafe_allow_html=True)
+elif page == "Advanced Analytics":
+    st.markdown("### 📊 උසස් වෙළඳ විශ්ලේෂණය (Advanced Market Analytics)", unsafe_allow_html=True)
     col1, col2 = st.columns(2)
     with col1:
         st.metric(label="Market Zone (ප්‍රදේශය)", value=ind['zone'])
-        st.metric(label="Bullish Break of Structure (BOS)", value="ඔව් (Yes)" if ind['bos_bullish'] else "නැත (No)")
-        st.metric(label="Bearish Break of Structure (BOS)", value="ඔව් (Yes)" if ind['bos_bearish'] else "නැත (No)")
-        st.metric(label="Bullish Order Block (OB)", value="ඔව් (Yes)" if ind['bullish_ob'] else "නැත (No)")
+        st.metric(label="Elliott Wave Phase", value=ind['elliott_phase'])
+        st.metric(label="Order Flow (Buying Pressure)", value="ශක්තිමත් (Active)" if ind['buying_pressure'] else "දුර්වලයි / සාමාන්‍යයි")
+        st.metric(label="Order Flow (Selling Pressure)", value="ශක්තිමත් (Active)" if ind['selling_pressure'] else "දුර්වලයි / සාමාන්‍යයි")
     with col2:
-        st.metric(label="Bearish Order Block (OB)", value="ඔව් (Yes)" if ind['bearish_ob'] else "නැත (No)")
+        st.metric(label="Volume Spike (පරිමාව ඉහළ යාම)", value="ඔව් (Yes)" if ind['volume_spike'] else "නැත (No)")
         st.metric(label="ICT Fair Value Gap (FVG)", value="ක්‍රියාකාරීයි (Active)" if (ind['bullish_fvg'] or ind['bearish_fvg']) else "නැත")
         st.metric(label="Liquidity Sweep (Stop Hunt)", value="හඳුනාගෙන ඇත" if (ind['liquidity_sweep_buy'] or ind['liquidity_sweep_sell']) else "නැත")
         st.metric(label="වොලටැලිටිය (ATR)", value=f"${ind['atr']:.4f}")
