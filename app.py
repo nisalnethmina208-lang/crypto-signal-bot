@@ -103,7 +103,7 @@ def calculate_indicators(df):
         "lower_band": lower_band.iloc[-1] if not np.isnan(lower_band.iloc[-1]) else close.iloc[-1] * 0.95
     }
 
-# Sidebar with Coins List (Fixed IDs)
+# Sidebar with Coins List (Fixed & Verified IDs)
 with st.sidebar:
     st.markdown("### 👑 VIP Pro Menu")
     page = st.selectbox("Navigation", ["Live Signal", "Advanced Analytics", "Notepad"])
@@ -301,13 +301,13 @@ with st.sidebar:
         "ILV/USDT": {"id": "illuvium", "sym": "BINANCE:ILVUSDT"},
         "YGG/USDT": {"id": "yield-guild-games", "sym": "BINANCE:YGGUSDT"},
         "BICO/USDT": {"id": "biconomy", "sym": "BINANCE:BICOUSDT"},
-        "VOXEL/USDT": {"id": "pixels", "sym": "BINANCE:VOXELUSDT"},
+        "VOXEL/USDT": {"id": "voxies", "sym": "BINANCE:VOXELUSDT"},
         "HIGH/USDT": {"id": "highstreet", "sym": "BINANCE:HIGHUSDT"},
         "CVX/USDT": {"id": "convex-finance", "sym": "BINANCE:CVXUSDT"},
         "PEOPLE/USDT": {"id": "constitutiondao", "sym": "BINANCE:PEOPLEUSDT"},
         "SPELL/USDT": {"id": "spell-token", "sym": "BINANCE:SPELLUSDT"},
-        "JOE/USDT": {"id": "trader-joe", "sym": "BINANCE:JOEUSDT"},
-        "1000RATS/USDT": {"id": "rats-ordinals", "sym": "BINANCE:1000RATSUSDT"}
+        "JOE/USDT": {"id": "joe", "sym": "BINANCE:JOEUSDT"},
+        "1000RATS/USDT": {"id": "rats", "sym": "BINANCE:1000RATSUSDT"}
     }
     
     sel = st.selectbox("Select Coin Pair", list(coins.keys()))
