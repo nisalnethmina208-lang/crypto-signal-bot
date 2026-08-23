@@ -151,7 +151,7 @@ def calculate_advanced_indicators(df):
         "elliott_bearish": elliott_bearish
     }
 
-# Sidebar with Full 235+ Coins List
+# Sidebar with Full Coins List (Coins 235+)
 with st.sidebar:
     st.markdown("### 👑 VIP Menu (Advanced Master)")
     page = st.selectbox("පිටුව තෝරන්න (Navigation)", ["Live Signal", "Advanced Analytics", "Notepad"])
@@ -357,11 +357,13 @@ if df is not None and not df.empty:
     if ind["elliott_bullish"]: score += 1
     if ind["elliott_bearish"]: score -= 1
 
-    # Zone Correction Logic
-    if "Discount" in ind["zone"]:
-        score += 2
-    else:
-        score -= 2
+    # --- STRICT ZONE OVERRIDE LOGIC ---
+    if "Premium" in ind["zone"]:
+        # Premium Zone එකකදී BUY සිග්නල් වැටීම සම්පූර්ණයෙන්ම වැළැක්වීම සඳහා ලකුණු බලහත්කාරයෙන් සෘණ (Negative) අගයකට ගෙන එයි
+        score = min(score, -2)
+    elif "Discount" in ind["zone"]:
+        # Discount Zone එකකදී SELL සිග්නල් වැටීම වැළැක්වීම සඳහා ලකුණු ධनात्मक (Positive) අගයකට ගෙන එයි
+        score = max(score, 2)
 
     if score >= 5:
         signal = "STRONG BUY (Advanced Verified) 🚀"
