@@ -3,7 +3,7 @@ import requests
 import pandas as pd
 import numpy as np
 
-st.set_page_config(page_title="Binance Pro Signal App VIP - 189 Coins + ICT", page_icon="👑", layout="wide")
+st.set_page_config(page_title="Binance Pro Signal App VIP - 197+ Coins Master", page_icon="👑", layout="wide")
 
 # --- Password Protection Function ---
 def check_password():
@@ -23,7 +23,7 @@ def check_password():
         st.markdown("## 👑 VIP App Login")
         st.text_input("Enter Password", type="password", key="password")
         st.button("Login", on_click=password_entered)
-        st.error("😕 Incorrect Password")
+        st.error("😕 මුරපදය වැරදියි (Incorrect Password)")
         return False
     else:
         return True
@@ -39,14 +39,14 @@ st.markdown("""
     .vip-badge { background: linear-gradient(135deg, #F59E0B 0%, #D97706 100%); color: white; padding: 2px 8px; font-size: 10px; font-weight: 800; border-radius: 4px; text-transform: uppercase; vertical-align: middle; margin-left: 8px; }
     .sub-desc { color: #64748B; font-size: 13px; margin-bottom: 20px; }
     .card { background: #FFFFFF; border: 1px solid #E2E8F0; padding: 15px; border-radius: 12px; margin-bottom: 15px; }
-    .signal-box { color: white; padding: 10px; font-size: 16px; font-weight: 700; border-radius: 8px; text-align: center; }
+    .signal-box { color: white; padding: 10px; font-size: 15px; font-weight: 700; border-radius: 8px; text-align: center; }
     .t-card { background: #F1F5F9; padding: 10px; border-radius: 8px; text-align: center; font-size: 13px; font-weight: 600; }
     </style>
 """, unsafe_allow_html=True)
 
 @st.cache_data(ttl=600, show_spinner=False)
 def get_coingecko_market_data(coin_id):
-    """CoinGecko API භාවිත කර දත්ත ලබා ගැනීම සහ දෝෂ මඟහරවා ගැනීම"""
+    """CoinGecko API භාවිත කර දත්ත ලබා ගැනීම"""
     try:
         url = f"https://api.coingecko.com/api/v3/coins/{coin_id}/market_chart?vs_currency=usd&days=7"
         headers = {"User-Agent": "Mozilla/5.0"}
@@ -66,107 +66,78 @@ def get_coingecko_market_data(coin_id):
     except:
         return None
 
-def calculate_indicators(df):
+def calculate_smc_ict_indicators(df):
     close = df['close']
     high = df['high']
     low = df['low']
-    volume = df['volume']
+    open_p = df['open']
     
-    # 1. EMA 9 & EMA 21
+    # 1. Trend & Moving Averages
     ema9 = close.ewm(span=9, adjust=False).mean()
     ema21 = close.ewm(span=21, adjust=False).mean()
     
-    # 2. RSI (14)
+    # 2. RSI & ATR
     delta = close.diff()
     gain = (delta.where(delta > 0, 0)).rolling(window=14).mean()
     loss = (-delta.where(delta < 0, 0)).rolling(window=14).mean()
     rs = gain / loss
     rsi = 100 - (100 / (1 + rs))
     
-    # 3. MACD (12, 26, 9)
-    exp12 = close.ewm(span=12, adjust=False).mean()
-    exp26 = close.ewm(span=26, adjust=False).mean()
-    macd = exp12 - exp26
-    signal_line = macd.ewm(span=9, adjust=False).mean()
-    
-    # 4. Bollinger Bands (20, 2)
-    sma20 = close.rolling(window=20).mean()
-    std20 = close.rolling(window=20).std()
-    upper_band = sma20 + (std20 * 2)
-    lower_band = sma20 - (std20 * 2)
-
-    # 5. Stochastic Oscillator (14, 3)
-    low_14 = low.rolling(window=14).min()
-    high_14 = high.rolling(window=14).max()
-    stoch_k = 100 * ((close - low_14) / (high_14 - low_14))
-    stoch_d = stoch_k.rolling(window=3).mean()
-
-    # 6. Average True Range (ATR 14)
     tr1 = high - low
     tr2 = (high - close.shift()).abs()
     tr3 = (low - close.shift()).abs()
-    true_range = pd.concat([tr1, tr2, tr3], axis=1).max(axis=1)
-    atr = true_range.rolling(window=14).mean()
+    atr = pd.concat([tr1, tr2, tr3], axis=1).max(axis=1).rolling(window=14).mean()
 
-    # 7. Commodity Channel Index (CCI 20)
-    tp = (high + low + close) / 3
-    sma_tp = tp.rolling(window=20).mean()
-    mean_deviation = (tp - sma_tp).abs().rolling(window=20).mean()
-    cci = (tp - sma_tp) / (0.015 * mean_deviation)
+    # --- SMC & ICT CORE LOGIC ---
+    df['swing_high'] = high.rolling(window=5).max()
+    df['swing_low'] = low.rolling(window=5).min()
+    
+    current_close = close.iloc[-1]
+    prev_high = df['swing_high'].iloc[-2]
+    prev_low = df['swing_low'].iloc[-2]
+    
+    bos_bullish = current_close > prev_high
+    bos_bearish = current_close < prev_low
+    
+    bullish_ob = (current_close > open_p.iloc[-1]) and (close.iloc[-2] < open_p.iloc[-2])
+    bearish_ob = (current_close < open_p.iloc[-1]) and (close.iloc[-2] > open_p.iloc[-2])
 
-    # 8. Volume Analysis
-    vol_sma = volume.rolling(window=20).mean()
-    
-    # 9. Smart Money Concepts (SMC) & ICT Additions
-    df['rolling_high'] = high.rolling(window=5).max()
-    df['rolling_low'] = low.rolling(window=5).min()
-    
-    bullish_ob = (close > df['open']) & (close.shift(1) < df['open'].shift(1))
-    bearish_ob = (close < df['open']) & (close.shift(1) > df['open'].shift(1))
-    
-    smc_bias = "NEUTRAL"
-    if close.iloc[-1] > df['rolling_high'].iloc[-2]:
-        smc_bias = "BULLISH_BOS" 
-    elif close.iloc[-1] < df['rolling_low'].iloc[-2]:
-        smc_bias = "BEARISH_BOS" 
-
-    # ICT Specific: Fair Value Gap (FVG) Detection
-    # Bullish FVG: Low of candle [i] > High of candle [i-2]
     bullish_fvg = (low.iloc[-1] > high.iloc[-3]) if len(df) >= 3 else False
-    # Bearish FVG: High of candle [i] < Low of candle [i-2]
     bearish_fvg = (high.iloc[-1] < low.iloc[-3]) if len(df) >= 3 else False
 
-    # ICT Specific: Liquidity Sweep / Raid (Taking out previous highs/lows and reversing)
-    liquidity_sweep_buy = (low.iloc[-1] < low.rolling(window=10).min().iloc[-2]) and (close.iloc[-1] > open.iloc[-1])
-    liquidity_sweep_sell = (high.iloc[-1] > high.rolling(window=10).max().iloc[-2]) and (close.iloc[-1] < open.iloc[-1])
+    liquidity_sweep_buy = (low.iloc[-1] < df['swing_low'].rolling(window=10).min().iloc[-2]) and (current_close > open_p.iloc[-1])
+    liquidity_sweep_sell = (high.iloc[-1] > df['swing_high'].rolling(window=10).max().iloc[-2]) and (current_close < open_p.iloc[-1])
+
+    range_high = high.rolling(window=20).max().iloc[-1]
+    range_low = low.rolling(window=20).min().iloc[-1]
+    equilibrium = (range_high + range_low) / 2
+    
+    if current_close > equilibrium:
+        zone = "Premium Zone (Sell Area)"
+    else:
+        zone = "Discount Zone (Buy Area)"
 
     return {
-        "price": close.iloc[-1],
+        "price": current_close,
         "ema9": ema9.iloc[-1],
         "ema21": ema21.iloc[-1],
         "rsi": rsi.iloc[-1] if not np.isnan(rsi.iloc[-1]) else 50.0,
-        "macd": macd.iloc[-1] if not np.isnan(macd.iloc[-1]) else 0.0,
-        "macd_signal": signal_line.iloc[-1] if not np.isnan(signal_line.iloc[-1]) else 0.0,
-        "upper_band": upper_band.iloc[-1] if not np.isnan(upper_band.iloc[-1]) else close.iloc[-1] * 1.05,
-        "lower_band": lower_band.iloc[-1] if not np.isnan(lower_band.iloc[-1]) else close.iloc[-1] * 0.95,
-        "stoch_k": stoch_k.iloc[-1] if not np.isnan(stoch_k.iloc[-1]) else 50.0,
-        "stoch_d": stoch_d.iloc[-1] if not np.isnan(stoch_d.iloc[-1]) else 50.0,
-        "atr": atr.iloc[-1] if not np.isnan(atr.iloc[-1]) else close.iloc[-1] * 0.01,
-        "cci": cci.iloc[-1] if not np.isnan(cci.iloc[-1]) else 0.0,
-        "vol_active": volume.iloc[-1] > vol_sma.iloc[-1] if not np.isnan(vol_sma.iloc[-1]) else True,
-        "smc_bias": smc_bias,
-        "bullish_ob": bullish_ob.iloc[-1],
-        "bearish_ob": bearish_ob.iloc[-1],
+        "atr": atr.iloc[-1] if not np.isnan(atr.iloc[-1]) else current_close * 0.01,
+        "bos_bullish": bos_bullish,
+        "bos_bearish": bos_bearish,
+        "bullish_ob": bullish_ob,
+        "bearish_ob": bearish_ob,
         "bullish_fvg": bullish_fvg,
         "bearish_fvg": bearish_fvg,
         "liquidity_sweep_buy": liquidity_sweep_buy,
-        "liquidity_sweep_sell": liquidity_sweep_sell
+        "liquidity_sweep_sell": liquidity_sweep_sell,
+        "zone": zone
     }
 
-# Sidebar with 189 Binance Coins List
+# Sidebar with 197+ Coins
 with st.sidebar:
-    st.markdown("### 👑 VIP Pro Menu (189 Coins + ICT)")
-    page = st.selectbox("Navigation", ["Live Signal", "Advanced Analytics", "Notepad"])
+    st.markdown("### 👑 VIP Menu (197+ Coins SMC/ICT)")
+    page = st.selectbox("පිටුව තෝරන්න (Navigation)", ["Live Signal", "SMC & ICT Analytics", "Notepad"])
     
     coins = {
         "BTC/USDT": {"id": "bitcoin", "sym": "BINANCE:BTCUSDT"},
@@ -179,14 +150,10 @@ with st.sidebar:
         "AVAX/USDT": {"id": "avalanche-2", "sym": "BINANCE:AVAXUSDT"},
         "TRX/USDT": {"id": "tron", "sym": "BINANCE:TRXUSDT"},
         "DOT/USDT": {"id": "polkadot", "sym": "BINANCE:DOTUSDT"},
-        "MATIC/USDT": {"id": "polygon-ecosystem-token", "sym": "BINANCE:MATICUSDT"},
         "LINK/USDT": {"id": "chainlink", "sym": "BINANCE:LINKUSDT"},
         "UNI/USDT": {"id": "uniswap", "sym": "BINANCE:UNIUSDT"},
-        "ATOM/USDT": {"id": "cosmos", "sym": "BINANCE:ATOMUSDT"},
-        "LTC/USDT": {"id": "litecoin", "sym": "BINANCE:LTCUSDT"},
         "NEAR/USDT": {"id": "near", "sym": "BINANCE:NEARUSDT"},
         "APT/USDT": {"id": "aptos", "sym": "BINANCE:APTUSDT"},
-        "FTM/USDT": {"id": "fantom", "sym": "BINANCE:FTMUSDT"},
         "ICP/USDT": {"id": "internet-computer", "sym": "BINANCE:ICPUSDT"},
         "RENDER/USDT": {"id": "render-token", "sym": "BINANCE:RNDRUSDT"},
         "INJ/USDT": {"id": "injective-protocol", "sym": "BINANCE:INJUSDT"},
@@ -282,7 +249,6 @@ with st.sidebar:
         "OCEAN/USDT": {"id": "ocean-protocol", "sym": "BINANCE:OCEANUSDT"},
         "RLC/USDT": {"id": "iexec-rlc", "sym": "BINANCE:RLCUSDT"},
         "POLS/USDT": {"id": "polkastarter", "sym": "BINANCE:POLSUSDT"},
-        "HERO/USDT": {"id": "metahero", "sym": "BINANCE:HEROUSDT"},
         "CELR/USDT": {"id": "celer-network", "sym": "BINANCE:CELRUSDT"},
         "DENT/USDT": {"id": "dent", "sym": "BINANCE:DENTUSDT"},
         "HOT/USDT": {"id": "holotoken", "sym": "BINANCE:HOTUSDT"},
@@ -297,14 +263,13 @@ with st.sidebar:
         "ONE/USDT": {"id": "harmony", "sym": "BINANCE:ONEUSDT"},
         "ANKR/USDT": {"id": "ankr", "sym": "BINANCE:ANKRUSDT"},
         "COTI/USDT": {"id": "coti", "sym": "BINANCE:COTIUSDT"},
-        "SKL/USDT": {"id": "celer-network", "sym": "BINANCE:SKALEUSDT"},
+        "SKL/USDT": {"id": "skale", "sym": "BINANCE:SKALEUSDT"},
         "STORJ/USDT": {"id": "storj", "sym": "BINANCE:STORJUSDT"},
         "OXT/USDT": {"id": "orchid", "sym": "BINANCE:OXTUSDT"},
         "LSK/USDT": {"id": "lisk", "sym": "BINANCE:LSKUSDT"},
         "SYS/USDT": {"id": "syscoin", "sym": "BINANCE:SYSUSDT"},
         "REEF/USDT": {"id": "reef", "sym": "BINANCE:REEFUSDT"},
         "OGN/USDT": {"id": "origin-protocol", "sym": "BINANCE:OGNUSDT"},
-        "NU/USDT": {"id": "nucypher", "sym": "BINANCE:NUUSDT"},
         "CTSI/USDT": {"id": "cartesi", "sym": "BINANCE:CTSIUSDT"},
         "CHR/USDT": {"id": "chromia", "sym": "BINANCE:CHRUSDT"},
         "PHA/USDT": {"id": "phala-network", "sym": "BINANCE:PHAUSDT"},
@@ -313,50 +278,39 @@ with st.sidebar:
         "BTT/USDT": {"id": "bittorrent", "sym": "BINANCE:BTTUSDT"},
         "WIN/USDT": {"id": "wink", "sym": "BINANCE:WINUSDT"},
         "JST/USDT": {"id": "just", "sym": "BINANCE:JSTUSDT"},
-        "NFT/USDT": {"id": "apron", "sym": "BINANCE:NFTUSDT"},
-        "DOCK/USDT": {"id": "dock", "sym": "BINANCE:DOCKUSDT"},
-        "AUT/USDT": {"id": "autata", "sym": "BINANCE:AUTUSDT"},
-        "PROS/USDT": {"id": "prosper", "sym": "BINANCE:PROSUSDT"},
-        "MBL/USDT": {"id": "moviebloc", "sym": "BINANCE:MBLUSDT"},
         "ARPA/USDT": {"id": "arpa", "sym": "BINANCE:ARPAUSDT"},
         "LIT/USDT": {"id": "litentry", "sym": "BINANCE:LITUSDT"},
         "BADGER/USDT": {"id": "badger-dao", "sym": "BINANCE:BADGERUSDT"},
         "FIS/USDT": {"id": "stafi", "sym": "BINANCE:FISUSDT"},
-        "MIR/USDT": {"id": "mirror-protocol", "sym": "BINANCE:MIRUSDT"},
-        "FORTH/USDT": {"id": "ampleforth-governance-token", "sym": "BINANCE:FORTHUSDT"},
-        "POLIS/USDT": {"id": "star-atlas-polis", "sym": "BINANCE:POLISUSDT"},
-        "ATLAS/USDT": {"id": "star-atlas", "sym": "BINANCE:ATLASUSDT"},
-        "QUICK/USDT": {"id": "quickswap", "sym": "BINANCE:QUICKUSDT"},
         "FLOW/USDT": {"id": "flow", "sym": "BINANCE:FLOWUSDT"},
         "MINA/USDT": {"id": "mina-protocol", "sym": "BINANCE:MINAUSDT"},
         "CLV/USDT": {"id": "clover-finance", "sym": "BINANCE:CLVUSDT"},
         "RAD/USDT": {"id": "radicle", "sym": "BINANCE:RADUSDT"},
-        "ERN/USDT": {"id": "ethernal", "sym": "BINANCE:ERNUSDT"},
-        "BETA/USDT": {"id": "beta-finance", "sym": "BINANCE:BETAUSDT"},
         "ID/USDT": {"id": "space-id", "sym": "BINANCE:IDUSDT"},
         "HOOK/USDT": {"id": "hooked-protocol", "sym": "BINANCE:HOOKUSDT"},
         "HIGH/USDT": {"id": "highstreet", "sym": "BINANCE:HIGHUSDT"},
-        "VOXEL/USDT": {"id": "pixels-voxel", "sym": "BINANCE:VOXELUSDT"},
         "BNX/USDT": {"id": "binaryx", "sym": "BINANCE:BNXUSDT"},
         "ILV/USDT": {"id": "illuvium", "sym": "BINANCE:ILVUSDT"},
         "MOVR/USDT": {"id": "moonriver", "sym": "BINANCE:MOVRUSDT"},
         "GLMR/USDT": {"id": "moonbeam", "sym": "BINANCE:GLMRUSDT"},
         "ASTR/USDT": {"id": "astar", "sym": "BINANCE:ASTRUSDT"},
-        "ACA/USDT": {"id": "acala", "sym": "BINANCE:ACAUSDT"},
-        "EPX/USDT": {"id": "ellipsis", "sym": "BINANCE:EPXUSDT"},
         "LDO/USDT": {"id": "lido-dao", "sym": "BINANCE:LDOUSDT"},
         "GNS/USDT": {"id": "gains-network", "sym": "BINANCE:GNSUSDT"},
-        "OAS/USDT": {"id": "oasys", "sym": "BINANCE:OASUSDT"},
         "SYN/USDT": {"id": "synapse-2", "sym": "BINANCE:SYNUSDT"},
-        "FRAX/USDT": {"id": "frax", "sym": "BINANCE:FRAXUSDT"},
         "FXS/USDT": {"id": "frax-share", "sym": "BINANCE:FXSUSDT"},
-        "TUSD/USDT": {"id": "true-usd", "sym": "BINANCE:TUSDUSDT"},
-        "USDP/USDT": {"id": "paxos-standard", "sym": "BINANCE:USDPUSDT"},
         "FDUSD/USDT": {"id": "first-digital-usd", "sym": "BINANCE:FDUSDUSDT"},
-        "USDC/USDT": {"id": "usd-coin", "sym": "BINANCE:USDCUSDT"}
+        "USDC/USDT": {"id": "usd-coin", "sym": "BINANCE:USDCUSDT"},
+        "TURBO/USDT": {"id": "turbo", "sym": "BINANCE:TURBOUSDT"},
+        "CATI/USDT": {"id": "cati", "sym": "BINANCE:CATIUSDT"},
+        "HMSTR/USDT": {"id": "hamster-kombat", "sym": "BINANCE:HMSTRUSDT"},
+        "EIGEN/USDT": {"id": "eigenlayer", "sym": "BINANCE:EIGENUSDT"},
+        "SCR/USDT": {"id": "scroll", "sym": "BINANCE:SCRUSDT"},
+        "PNUT/USDT": {"id": "pnut", "sym": "BINANCE:PNUTUSDT"},
+        "ACT/USDT": {"id": "act-i-the-ai-prophecy", "sym": "BINANCE:ACTUSDT"},
+        "GOAT/USDT": {"id": "goatseus-maximus", "sym": "BINANCE:GOATUSDT"}
     }
     
-    sel = st.selectbox("Select Coin Pair (189 Available)", list(coins.keys()))
+    sel = st.selectbox("කොයින් එක තෝරන්න (Select Coin)", list(coins.keys()))
     coin_id = coins[sel]["id"]
     tv_sym = coins[sel]["sym"]
 
@@ -364,82 +318,57 @@ with st.sidebar:
 df = get_coingecko_market_data(coin_id)
 
 if df is not None and not df.empty:
-    ind = calculate_indicators(df)
+    ind = calculate_smc_ict_indicators(df)
     price = ind["price"]
     change = ((price - df['open'].iloc[0]) / df['open'].iloc[0]) * 100
     
     score = 0
     
-    # EMA Trend
     if ind["ema9"] > ind["ema21"]: score += 1
     else: score -= 1
-    
-    # RSI
-    if ind["rsi"] < 45: score += 1
-    elif ind["rsi"] > 55: score -= 1
-    
-    # MACD
-    if ind["macd"] > ind["macd_signal"]: score += 1
-    else: score -= 1
-    
-    # Bollinger Bands
-    if price <= ind["lower_band"]: score += 1
-    elif price >= ind["upper_band"]: score -= 1
 
-    # Stochastic Oscillator
-    if ind["stoch_k"] < 20: score += 1
-    elif ind["stoch_k"] > 80: score -= 1
+    if ind["bos_bullish"]: score += 2
+    if ind["bos_bearish"]: score -= 2
+    if ind["bullish_ob"]: score += 2
+    if ind["bearish_ob"]: score -= 2
 
-    # CCI
-    if ind["cci"] < -100: score += 1
-    elif ind["cci"] > 100: score -= 1
-
-    # Volume Confirmation
-    if ind["vol_active"]: score += 1
-
-    # SMC & ICT Weight Additions
-    if ind["smc_bias"] == "BULLISH_BOS": score += 2
-    elif ind["smc_bias"] == "BEARISH_BOS": score -= 2
-    
-    if ind["bullish_ob"]: score += 1
-    if ind["bearish_ob"]: score -= 1
-
-    # ICT Specific Weights (Fair Value Gaps & Liquidity Sweeps)
     if ind["bullish_fvg"]: score += 2
     if ind["bearish_fvg"]: score -= 2
-
     if ind["liquidity_sweep_buy"]: score += 3
     if ind["liquidity_sweep_sell"]: score -= 3
 
+    if "Discount" in ind["zone"] and score > 0: score += 1
+    elif "Premium" in ind["zone"] and score < 0: score -= 1
+
     if score >= 5:
-        signal = "STRONG BUY (ICT + VIP Confirmed) 🚀"
+        signal = "STRONG BUY (SMC/ICT සමතුලිතයි) 🚀"
         sig_color = "#10B981"
-    elif score >= 1:
-        signal = "BUY 📈"
+    elif score >= 2:
+        signal = "BUY (බුලිෂ් ප්‍රවණතාවක් ඇත) 📈"
         sig_color = "#34D399"
     elif score <= -5:
-        signal = "STRONG SELL (ICT + VIP Confirmed) 🔻"
+        signal = "STRONG SELL (SMC/ICT මඟින් තහවුරුයි) 🔻"
         sig_color = "#EF4444"
-    elif score <= -1:
-        signal = "SELL 📉"
+    elif score <= -2:
+        signal = "SELL (බෙයාර්ලිෂ් ප්‍රවණතාවක් ඇත) 📉"
         sig_color = "#F87171"
     else:
-        signal = "HOLD / NEUTRAL ⚖️"
+        signal = "HOLD / බලා සිටින්න (Neutral) ⚖️"
         sig_color = "#F59E0B"
 
     is_buy = "BUY" in signal
 else:
-    st.error("Failed to fetch market data. Please check your connection.")
+    st.error("දත්ත ලබා ගැනීම අසාර්ථක විය. කරුණාකර අන්තර්ජාල සම්බන්ධතාවය පරීක්ෂා කරන්න.")
     st.stop()
 
 # App Header
-st.markdown(f'<p class="vip-header">👑 Binance Pro Signal App <span class="vip-badge">189 Coins + AI + ICT</span></p>', unsafe_allow_html=True)
-st.markdown(f'<p class="sub-desc">Multi-Indicator & ICT Engine analyzing <b>{sel}</b> to provide accurate Buy/Sell signals.</p>', unsafe_allow_html=True)
+st.markdown(f'<p class="vip-header">👑 Binance Pro Signal App <span class="vip-badge">197+ Coins Master</span></p>', unsafe_allow_html=True)
+st.markdown(f'<p class="sub-desc"><b>{sel}</b> සඳහා Smart Money Concepts සහ Inner Circle Trader සංකල්ප භාවිත කර සකස් කළ සංඥා පද්ධතිය.</p>', unsafe_allow_html=True)
 
 if page == "Live Signal":
     col1, col2 = st.columns([3, 1])
     with col1:
-        st.markdown(f"**Price:** ${price:,.4f} | **Change:** <span style='color: {'#059669' if change >= 0 else '#DC2626'};'>{change:,.2f}%</span> | **SMC/ICT Bias:** <b>{ind['smc_bias']}</b>", unsafe_allow_html=True)
+        st.markdown(f"**මිල (Price):** ${price:,.4f} | **වෙනස (Change):** <span style='color: {'#059669' if change >= 0 else '#DC2626'};'>{change:,.2f}%</span> | **කලාපය (Zone):** <b>{ind['zone']}</b>", unsafe_allow_html=True)
     with col2:
         st.markdown(f'<div class="signal-box" style="background: {sig_color};">{signal}</div>', unsafe_allow_html=True)
 
@@ -449,10 +378,10 @@ if page == "Live Signal":
 
     st.markdown("<br>", unsafe_allow_html=True)
     c1, c2, c3, c4 = st.columns(4)
-    c1.markdown(f'<div class="t-card">Entry Price<br><b>${price:,.4f}</b></div>', unsafe_allow_html=True)
-    c2.markdown(f'<div class="t-card">Target 1 (TP1)<br><b style="color: #059669;">${tp1:,.4f}</b></div>', unsafe_allow_html=True)
-    c3.markdown(f'<div class="t-card">Target 2 (TP2)<br><b style="color: #059669;">${tp2:,.4f}</b></div>', unsafe_allow_html=True)
-    c4.markdown(f'<div class="t-card">Stop Loss (SL)<br><b style="color: #DC2626;">${sl:,.4f}</b></div>', unsafe_allow_html=True)
+    c1.markdown(f'<div class="t-card">ඇතුල්වන මිල (Entry)<br><b>${price:,.4f}</b></div>', unsafe_allow_html=True)
+    c2.markdown(f'<div class="t-card">ඉලක්කය 1 (TP1)<br><b style="color: #059669;">${tp1:,.4f}</b></div>', unsafe_allow_html=True)
+    c3.markdown(f'<div class="t-card">ඉලක්කය 2 (TP2)<br><b style="color: #059669;">${tp2:,.4f}</b></div>', unsafe_allow_html=True)
+    c4.markdown(f'<div class="t-card">නැවතුම් අලාභය (SL)<br><b style="color: #DC2626;">${sl:,.4f}</b></div>', unsafe_allow_html=True)
 
     st.markdown("<br>", unsafe_allow_html=True)
     
@@ -467,25 +396,25 @@ if page == "Live Signal":
     """
     st.components.v1.html(chart_html, height=410)
 
-elif page == "Advanced Analytics":
-    st.markdown("### 📊 ICT & Advanced Technical Indicators Deep-Dive", unsafe_allow_html=True)
+elif page == "SMC & ICT Analytics":
+    st.markdown("### 📊 SMC & ICT ගැඹුරු විශ්ලේෂණය (Deep Analytics)", unsafe_allow_html=True)
     col1, col2 = st.columns(2)
     with col1:
-        st.metric(label="Market Structure / BOS", value=ind['smc_bias'])
-        st.metric(label="ICT Bullish FVG Active", value="Yes" if ind['bullish_fvg'] else "No")
-        st.metric(label="ICT Bearish Fvg Active", value="Yes" if ind['bearish_fvg'] else "No")
-        st.metric(label="Liquidity Sweep Buy", value="Yes" if ind['liquidity_sweep_buy'] else "No")
+        st.metric(label="Market Zone (ප්‍රදේශය)", value=ind['zone'])
+        st.metric(label="Bullish Break of Structure (BOS)", value="ඔව් (Yes)" if ind['bos_bullish'] else "නැත (No)")
+        st.metric(label="Bearish Break of Structure (BOS)", value="ඔව් (Yes)" if ind['bos_bearish'] else "නැත (No)")
+        st.metric(label="Bullish Order Block (OB)", value="ඔව් (Yes)" if ind['bullish_ob'] else "නැත (No)")
     with col2:
-        st.metric(label="Liquidity Sweep Sell", value="Yes" if ind['liquidity_sweep_sell'] else "No")
-        st.metric(label="Bullish Order Block", value="Yes" if ind['bullish_ob'] else "No")
-        st.metric(label="Bearish Order Block", value="Yes" if ind['bearish_ob'] else "No")
-        st.metric(label="ATR (Volatility)", value=f"${ind['atr']:.4f}")
+        st.metric(label="Bearish Order Block (OB)", value="ඔව් (Yes)" if ind['bearish_ob'] else "නැත (No)")
+        st.metric(label="ICT Fair Value Gap (FVG)", value="ක්‍රියාකාරීයි (Active)" if (ind['bullish_fvg'] or ind['bearish_fvg']) else "නැත")
+        st.metric(label="Liquidity Sweep (Stop Hunt)", value="හඳුනාගෙන ඇත" if (ind['liquidity_sweep_buy'] or ind['liquidity_sweep_sell']) else "නැත")
+        st.metric(label="වොලටැලිටිය (ATR)", value=f"${ind['atr']:.4f}")
 
 elif page == "Notepad":
-    st.markdown('### 📝 VIP Trading Notepad', unsafe_allow_html=True)
+    st.markdown('### 📝 VIP වෙළඳ සටහන් (Trading Notepad)', unsafe_allow_html=True)
     if 'note' not in st.session_state: 
         st.session_state.note = ""
-    st.session_state.note = st.text_area("Note", value=st.session_state.note, height=200, label_visibility="collapsed", placeholder="Write down your VIP notes here...")
-    if st.button("Clear Notes"): 
+    st.session_state.note = st.text_area("Note", value=st.session_state.note, height=200, label_visibility="collapsed", placeholder="ඔබේ සටහන් මෙහි ලියා තබා ගන්න...")
+    if st.button("සටහන් මحو කරන්න (Clear)"): 
         st.session_state.note = ""
         st.rerun()
