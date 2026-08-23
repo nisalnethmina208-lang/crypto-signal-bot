@@ -68,6 +68,8 @@ def get_coingecko_market_data(coin_id):
 
 def calculate_indicators(df):
     close = df['close']
+    high = df['high']
+    low = df['low']
     
     # 1. EMA 9 & EMA 21
     ema9 = close.ewm(span=9, adjust=False).mean()
@@ -92,6 +94,21 @@ def calculate_indicators(df):
     upper_band = sma20 + (std20 * 2)
     lower_band = sma20 - (std20 * 2)
     
+    # 5. Smart Money Concepts (SMC) Logic [LuxAlgo Style approximations]
+    # Finding Market Structure Shifts (BOS / ChoCh) & Order Block zones
+    df['rolling_high'] = high.rolling(window=5).max()
+    df['rolling_low'] = low.rolling(window=5).min()
+    
+    # Bullish / Bearish Order Blocks estimation based on impulsive moves
+    bullish_ob = (close > df['open']) & (close.shift(1) < df['open'].shift(1))
+    bearish_ob = (close < df['open']) & (close.shift(1) > df['open'].shift(1))
+    
+    smc_bias = "NEUTRAL"
+    if close.iloc[-1] > df['rolling_high'].iloc[-2]:
+        smc_bias = "BULLISH_BOS" # Break of Structure upwards (Smart Money Buying)
+    elif close.iloc[-1] < df['rolling_low'].iloc[-2]:
+        smc_bias = "BEARISH_BOS" # Break of Structure downwards (Smart Money Selling)
+
     return {
         "price": close.iloc[-1],
         "ema9": ema9.iloc[-1],
@@ -100,10 +117,13 @@ def calculate_indicators(df):
         "macd": macd.iloc[-1] if not np.isnan(macd.iloc[-1]) else 0.0,
         "macd_signal": signal_line.iloc[-1] if not np.isnan(signal_line.iloc[-1]) else 0.0,
         "upper_band": upper_band.iloc[-1] if not np.isnan(upper_band.iloc[-1]) else close.iloc[-1] * 1.05,
-        "lower_band": lower_band.iloc[-1] if not np.isnan(lower_band.iloc[-1]) else close.iloc[-1] * 0.95
+        "lower_band": lower_band.iloc[-1] if not np.isnan(lower_band.iloc[-1]) else close.iloc[-1] * 0.95,
+        "smc_bias": smc_bias,
+        "bullish_ob": bullish_ob.iloc[-1],
+        "bearish_ob": bearish_ob.iloc[-1]
     }
 
-# Sidebar with Coins List (Fixed & Verified IDs)
+# Sidebar with Coins List
 with st.sidebar:
     st.markdown("### 👑 VIP Pro Menu")
     page = st.selectbox("Navigation", ["Live Signal", "Advanced Analytics", "Notepad"])
@@ -139,175 +159,6 @@ with st.sidebar:
         "SHIB/USDT": {"id": "shiba-inu", "sym": "BINANCE:SHIBUSDT"},
         "FLOKI/USDT": {"id": "floki", "sym": "BINANCE:FLOKIUSDT"},
         "BONK/USDT": {"id": "bonk", "sym": "BINANCE:BONKUSDT"},
-        "XLM/USDT": {"id": "stellar", "sym": "BINANCE:XLMUSDT"},
-        "BCH/USDT": {"id": "bitcoin-cash", "sym": "BINANCE:BCHUSDT"},
-        "ALGO/USDT": {"id": "algorand", "sym": "BINANCE:ALGOUSDT"},
-        "VET/USDT": {"id": "vechain", "sym": "BINANCE:VETUSDT"},
-        "GRT/USDT": {"id": "the-graph", "sym": "BINANCE:GRTUSDT"},
-        "SAND/USDT": {"id": "the-sandbox", "sym": "BINANCE:SANDUSDT"},
-        "MANA/USDT": {"id": "decentraland", "sym": "BINANCE:MANAUSDT"},
-        "AXS/USDT": {"id": "axie-infinity", "sym": "BINANCE:AXSUSDT"},
-        "THETA/USDT": {"id": "theta-token", "sym": "BINANCE:THETAUSDT"},
-        "EGLD/USDT": {"id": "elrond-erd-2", "sym": "BINANCE:EGLDUSDT"},
-        "KAS/USDT": {"id": "kaspa", "sym": "BINANCE:KASUSDT"},
-        "HBAR/USDT": {"id": "hedera-hashgraph", "sym": "BINANCE:HBARUSDT"},
-        "FLOW/USDT": {"id": "flow", "sym": "BINANCE:FLOWUSDT"},
-        "EOS/USDT": {"id": "eos", "sym": "BINANCE:EOSUSDT"},
-        "CRV/USDT": {"id": "curve-dao-token", "sym": "BINANCE:CRVUSDT"},
-        "AAVE/USDT": {"id": "aave", "sym": "BINANCE:AAVEUSDT"},
-        "MKR/USDT": {"id": "maker", "sym": "BINANCE:MKRUSDT"},
-        "SNX/USDT": {"id": "synthetix-network-token", "sym": "BINANCE:SNXUSDT"},
-        "COMP/USDT": {"id": "compound-governance-token", "sym": "BINANCE:COMPUSDT"},
-        "CHZ/USDT": {"id": "chiliz", "sym": "BINANCE:CHZUSDT"},
-        "ZIL/USDT": {"id": "zilliqa", "sym": "BINANCE:ZILUSDT"},
-        "ENJ/USDT": {"id": "enjincoin", "sym": "BINANCE:ENJUSDT"},
-        "BAT/USDT": {"id": "basic-attention-token", "sym": "BINANCE:BATUSDT"},
-        "ZRX/USDT": {"id": "0x", "sym": "BINANCE:ZRXUSDT"},
-        "GALA/USDT": {"id": "gala", "sym": "BINANCE:GALAUSDT"},
-        "ROSE/USDT": {"id": "oasis-network", "sym": "BINANCE:ROSEUSDT"},
-        "ICX/USDT": {"id": "icon", "sym": "BINANCE:ICXUSDT"},
-        "KAVA/USDT": {"id": "kava", "sym": "BINANCE:KAVAUSDT"},
-        "IOTX/USDT": {"id": "iotex", "sym": "BINANCE:IOTXUSDT"},
-        "STX/USDT": {"id": "blockstack", "sym": "BINANCE:STXUSDT"},
-        "CKB/USDT": {"id": "nervos-network", "sym": "BINANCE:CKBUSDT"},
-        "MINA/USDT": {"id": "mina-protocol", "sym": "BINANCE:MINAUSDT"},
-        "GLMR/USDT": {"id": "moonbeam", "sym": "BINANCE:GLMRUSDT"},
-        "ACH/USDT": {"id": "alchemy-pay", "sym": "BINANCE:ACHUSDT"},
-        "JASMY/USDT": {"id": "jasmycoin", "sym": "BINANCE:JASMYUSDT"},
-        "LDO/USDT": {"id": "lido-dao", "sym": "BINANCE:LDOUSDT"},
-        "SSV/USDT": {"id": "ssv-network", "sym": "BINANCE:SSVUSDT"},
-        "CFX/USDT": {"id": "conflux-token", "sym": "BINANCE:CFXUSDT"},
-        "MASK/USDT": {"id": "mask-network", "sym": "BINANCE:MASKUSDT"},
-        "AGIX/USDT": {"id": "singularitynet", "sym": "BINANCE:AGIXUSDT"},
-        "FET/USDT": {"id": "fetch-ai", "sym": "BINANCE:FETUSDT"},
-        "RLC/USDT": {"id": "iexec-rlc", "sym": "BINANCE:RLCUSDT"},
-        "BAND/USDT": {"id": "band-protocol", "sym": "BINANCE:BANDUSDT"},
-        "API3/USDT": {"id": "api3", "sym": "BINANCE:API3USDT"},
-        "SKL/USDT": {"id": "ankr-network", "sym": "BINANCE:SKLUSDT"},
-        "CTSI/USDT": {"id": "cartesi", "sym": "BINANCE:CTSIUSDT"},
-        "COTI/USDT": {"id": "coti", "sym": "BINANCE:COTIUSDT"},
-        "DGB/USDT": {"id": "digibyte", "sym": "BINANCE:DGBUSDT"},
-        "SC/USDT": {"id": "siacoin", "sym": "BINANCE:SCUSDT"},
-        "RVN/USDT": {"id": "ravencoin", "sym": "BINANCE:RVNUSDT"},
-        "IOST/USDT": {"id": "iostoken", "sym": "BINANCE:IOSTUSDT"},
-        "ONT/USDT": {"id": "ontology", "sym": "BINANCE:ONTUSDT"},
-        "ZEC/USDT": {"id": "zcash", "sym": "BINANCE:ZECUSDT"},
-        "DASH/USDT": {"id": "dash", "sym": "BINANCE:DASHUSDT"},
-        "XMR/USDT": {"id": "monero", "sym": "BINANCE:XMRUSDT"},
-        "ZEN/USDT": {"id": "horizen", "sym": "BINANCE:ZENUSDT"},
-        "QTUM/USDT": {"id": "qtum", "sym": "BINANCE:QTUMUSDT"},
-        "OMG/USDT": {"id": "omisego", "sym": "BINANCE:OMGUSDT"},
-        "NKN/USDT": {"id": "nkn", "sym": "BINANCE:NKNUSDT"},
-        "OGN/USDT": {"id": "origin-protocol", "sym": "BINANCE:OGNUSDT"},
-        "BAL/USDT": {"id": "balancer", "sym": "BINANCE:BALUSDT"},
-        "LRC/USDT": {"id": "loopring", "sym": "BINANCE:LRCUSDT"},
-        "SXP/USDT": {"id": "swipe", "sym": "BINANCE:SXPUSDT"},
-        "KNC/USDT": {"id": "kyber-network-crystal", "sym": "BINANCE:KNCUSDT"},
-        "STORJ/USDT": {"id": "storj", "sym": "BINANCE:STORJUSDT"},
-        "ANKR/USDT": {"id": "ankr", "sym": "BINANCE:ANKRUSDT"},
-        "PYTH/USDT": {"id": "pyth-network", "sym": "BINANCE:PYTHUSDT"},
-        "JUP/USDT": {"id": "jupiter-exchange-solana", "sym": "BINANCE:JUPUSDT"},
-        "WIF/USDT": {"id": "dogwifcoin", "sym": "BINANCE:WIFUSDT"},
-        "BOME/USDT": {"id": "book-of-meme", "sym": "BINANCE:BOMEUSDT"},
-        "TAO/USDT": {"id": "bittensor", "sym": "BINANCE:TAOUSDT"},
-        "W/USDT": {"id": "wormhole", "sym": "BINANCE:WUSDT"},
-        "ONDO/USDT": {"id": "ondo-finance", "sym": "BINANCE:ONDOUSDT"},
-        "PENDLE/USDT": {"id": "pendle", "sym": "BINANCE:PENDLEUSDT"},
-        "PORTAL/USDT": {"id": "portal", "sym": "BINANCE:PORTALUSDT"},
-        "MANTA/USDT": {"id": "manta-network", "sym": "BINANCE:MANTAUSDT"},
-        "ZRO/USDT": {"id": "layerzero", "sym": "BINANCE:ZROUSDT"},
-        "BLUR/USDT": {"id": "blur", "sym": "BINANCE:BLURUSDT"},
-        "MEME/USDT": {"id": "memecoin-2", "sym": "BINANCE:MEMEUSDT"},
-        "PORT3/USDT": {"id": "port3-network", "sym": "BINANCE:PORT3USDT"},
-        "ACE/USDT": {"id": "fusionist", "sym": "BINANCE:ACEUSDT"},
-        "NFP/USDT": {"id": "nfprompt", "sym": "BINANCE:NFPUSDT"},
-        "AI/USDT": {"id": "sleepless-ai", "sym": "BINANCE:AIUSDT"},
-        "XAI/USDT": {"id": "xai-blockchain", "sym": "BINANCE:XAIUSDT"},
-        "PIXEL/USDT": {"id": "pixels", "sym": "BINANCE:PIXELUSDT"},
-        "STRK/USDT": {"id": "starknet", "sym": "BINANCE:STRKUSDT"},
-        "ALT/USDT": {"id": "altlayer", "sym": "BINANCE:ALTUSDT"},
-        "DYM/USDT": {"id": "dymension", "sym": "BINANCE:DYMUSDT"},
-        "MAV/USDT": {"id": "maverick-protocol", "sym": "BINANCE:MAVUSDT"},
-        "CYBER/USDT": {"id": "cyberconnect", "sym": "BINANCE:CYBERUSDT"},
-        "RDNT/USDT": {"id": "radiant-capital", "sym": "BINANCE:RDNTUSDT"},
-        "ARKM/USDT": {"id": "arkham", "sym": "BINANCE:ARKMUSDT"},
-        "WLD/USDT": {"id": "worldcoin-wld", "sym": "BINANCE:WLDUSDT"},
-        "IQ/USDT": {"id": "everipedia", "sym": "BINANCE:IQUSDT"},
-        "COMBO/USDT": {"id": "combo", "sym": "BINANCE:COMBOUSDT"},
-        "MDT/USDT": {"id": "measurable-data-token", "sym": "BINANCE:MDTUSDT"},
-        "STG/USDT": {"id": "stargate-finance", "sym": "BINANCE:STGUSDT"},
-        "POLYX/USDT": {"id": "polymesh", "sym": "BINANCE:POLYXUSDT"},
-        "GMX/USDT": {"id": "gmx", "sym": "BINANCE:GMXUSDT"},
-        "LQTY/USDT": {"id": "liquity", "sym": "BINANCE:LQTYUSDT"},
-        "AGLD/USDT": {"id": "adventure-gold", "sym": "BINANCE:AGLDUSDT"},
-        "RAD/USDT": {"id": "radicle", "sym": "BINANCE:RADUSDT"},
-        "POL/USDT": {"id": "polygon-ecosystem-token", "sym": "BINANCE:POLUSDT"},
-        "SYS/USDT": {"id": "syscoin", "sym": "BINANCE:SYSUSDT"},
-        "LSK/USDT": {"id": "lisk", "sym": "BINANCE:LSKUSDT"},
-        "ARDR/USDT": {"id": "ardor", "sym": "BINANCE:ARDRUSDT"},
-        "STEEM/USDT": {"id": "steem", "sym": "BINANCE:STEEMUSDT"},
-        "HIVE/USDT": {"id": "hive", "sym": "BINANCE:HIVEUSDT"},
-        "SNT/USDT": {"id": "status", "sym": "BINANCE:SNTUSDT"},
-        "FUN/USDT": {"id": "funtoken", "sym": "BINANCE:FUNUSDT"},
-        "POWR/USDT": {"id": "power-ledger", "sym": "BINANCE:POWRUSDT"},
-        "BLZ/USDT": {"id": "bluzelle", "sym": "BINANCE:BLZUSDT"},
-        "SUPER/USDT": {"id": "superverse", "sym": "BINANCE:SUPERUSDT"},
-        "PERP/USDT": {"id": "perpetual-protocol", "sym": "BINANCE:PERPUSDT"},
-        "ATA/USDT": {"id": "automata-network", "sym": "BINANCE:ATAUSDT"},
-        "BAKE/USDT": {"id": "bakerytoken", "sym": "BINANCE:BAKEUSDT"},
-        "BURGER/USDT": {"id": "burger-swap", "sym": "BINANCE:BURGERUSDT"},
-        "SLP/USDT": {"id": "smooth-love-potion", "sym": "BINANCE:SLPUSDT"},
-        "TKO/USDT": {"id": "tokocrypto", "sym": "BINANCE:TKOUSDT"},
-        "PUNDIX/USDT": {"id": "pundix", "sym": "BINANCE:PUNDIXUSDT"},
-        "STRAX/USDT": {"id": "strax", "sym": "BINANCE:STRAXUSDT"},
-        "SUN/USDT": {"id": "sun-token", "sym": "BINANCE:SUNUSDT"},
-        "BTT/USDT": {"id": "bittorrent", "sym": "BINANCE:BTTUSDT"},
-        "JST/USDT": {"id": "just", "sym": "BINANCE:JSTUSDT"},
-        "WIN/USDT": {"id": "wink", "sym": "BINANCE:WINUSDT"},
-        "DF/USDT": {"id": "dforce", "sym": "BINANCE:DFUSDT"},
-        "REEF/USDT": {"id": "reef", "sym": "BINANCE:REEFUSDT"},
-        "VIDT/USDT": {"id": "vidt-dao", "sym": "BINANCE:VIDTUSDT"},
-        "MBL/USDT": {"id": "moviebloc", "sym": "BINANCE:MBLUSDT"},
-        "AR/USDT": {"id": "arweave", "sym": "BINANCE:ARUSDT"},
-        "OCEAN/USDT": {"id": "ocean-protocol", "sym": "BINANCE:OCEANUSDT"},
-        "NMR/USDT": {"id": "numeraire", "sym": "BINANCE:NMRUSDT"},
-        "REP/USDT": {"id": "augur", "sym": "BINANCE:REPUSDT"},
-        "SRM/USDT": {"id": "serum", "sym": "BINANCE:SRMUSDT"},
-        "PSG/USDT": {"id": "paris-saint-germain-fan-token", "sym": "BINANCE:PSGUSDT"},
-        "BAR/USDT": {"id": "fc-barcelona-fan-token", "sym": "BINANCE:BARUSDT"},
-        "JUV/USDT": {"id": "juventus-fan-token", "sym": "BINANCE:JUVUSDT"},
-        "ASR/USDT": {"id": "as-roma-fan-token", "sym": "BINANCE:ASRUSDT"},
-        "ATM/USDT": {"id": "atletico-madrid-fan-token", "sym": "BINANCE:ATMUSDT"},
-        "OG/USDT": {"id": "og-esports", "sym": "BINANCE:OGUSDT"},
-        "CITY/USDT": {"id": "manchester-city-fan-token", "sym": "BINANCE:CITYUSDT"},
-        "OX/USDT": {"id": "ox-protocol", "sym": "BINANCE:OXUSDT"},
-        "ID/USDT": {"id": "space-id", "sym": "BINANCE:IDUSDT"},
-        "TRU/USDT": {"id": "truefi", "sym": "BINANCE:TRUUSDT"},
-        "LIT/USDT": {"id": "litentry", "sym": "BINANCE:LITUSDT"},
-        "SFP/USDT": {"id": "safepal", "sym": "BINANCE:SFPUSDT"},
-        "DOCK/USDT": {"id": "dock", "sym": "BINANCE:DOCKUSDT"},
-        "FOR/USDT": {"id": "forTube", "sym": "BINANCE:FORUSDT"},
-        "HARD/USDT": {"id": "kava-lend", "sym": "BINANCE:HARDUSDT"},
-        "UNFI/USDT": {"id": "unifi-protocol-dao", "sym": "BINANCE:UNFIUSDT"},
-        "EPS/USDT": {"id": "ellipsis", "sym": "BINANCE:EPSUSDT"},
-        "QI/USDT": {"id": "benqi", "sym": "BINANCE:QIUSDT"},
-        "WOO/USDT": {"id": "woo-network", "sym": "BINANCE:WOOUSDT"},
-        "FIDA/USDT": {"id": "bonfida", "sym": "BINANCE:FIDAUSDT"},
-        "GLM/USDT": {"id": "golem", "sym": "BINANCE:GLMUSDT"},
-        "PROM/USDT": {"id": "prom", "sym": "BINANCE:PROMUSDT"},
-        "QUICK/USDT": {"id": "quickswap", "sym": "BINANCE:QUICKUSDT"},
-        "FIS/USDT": {"id": "stafi", "sym": "BINANCE:FISUSDT"},
-        "GNO/USDT": {"id": "gnosis", "sym": "BINANCE:GNOUSDT"},
-        "ILV/USDT": {"id": "illuvium", "sym": "BINANCE:ILVUSDT"},
-        "YGG/USDT": {"id": "yield-guild-games", "sym": "BINANCE:YGGUSDT"},
-        "BICO/USDT": {"id": "biconomy", "sym": "BINANCE:BICOUSDT"},
-        "VOXEL/USDT": {"id": "voxies", "sym": "BINANCE:VOXELUSDT"},
-        "HIGH/USDT": {"id": "highstreet", "sym": "BINANCE:HIGHUSDT"},
-        "CVX/USDT": {"id": "convex-finance", "sym": "BINANCE:CVXUSDT"},
-        "PEOPLE/USDT": {"id": "constitutiondao", "sym": "BINANCE:PEOPLEUSDT"},
-        "SPELL/USDT": {"id": "spell-token", "sym": "BINANCE:SPELLUSDT"},
-        "JOE/USDT": {"id": "joe", "sym": "BINANCE:JOEUSDT"},
-        "1000RATS/USDT": {"id": "rats", "sym": "BINANCE:1000RATSUSDT"}
     }
     
     sel = st.selectbox("Select Coin Pair", list(coins.keys()))
@@ -322,7 +173,7 @@ if df is not None and not df.empty:
     price = ind["price"]
     change = ((price - df['open'].iloc[0]) / df['open'].iloc[0]) * 100
     
-    # Multi-Indicator Scoring System
+    # Multi-Indicator + Smart Money Concepts Scoring System
     score = 0
     
     if ind["ema9"] > ind["ema21"]: score += 1
@@ -337,16 +188,23 @@ if df is not None and not df.empty:
     if price <= ind["lower_band"]: score += 1
     elif price >= ind["upper_band"]: score -= 1
 
-    if score >= 2:
-        signal = "STRONG BUY 🚀"
+    # SMC Weight Additions
+    if ind["smc_bias"] == "BULLISH_BOS": score += 2
+    elif ind["smc_bias"] == "BEARISH_BOS": score -= 2
+    
+    if ind["bullish_ob"]: score += 1
+    if ind["bearish_ob"]: score -= 1
+
+    if score >= 3:
+        signal = "STRONG BUY (SMC Confirmed) 🚀"
         sig_color = "#10B981"
-    elif score == 1:
+    elif score >= 1:
         signal = "BUY 📈"
         sig_color = "#34D399"
-    elif score <= -2:
-        signal = "STRONG SELL 🔻"
+    elif score <= -3:
+        signal = "STRONG SELL (SMC Confirmed) 🔻"
         sig_color = "#EF4444"
-    elif score == -1:
+    elif score <= -1:
         signal = "SELL 📉"
         sig_color = "#F87171"
     else:
@@ -359,13 +217,13 @@ else:
     st.stop()
 
 # App Header
-st.markdown(f'<p class="vip-header">👑 Binance Pro Signal App <span class="vip-badge">VIP AI Pro</span></p>', unsafe_allow_html=True)
-st.markdown(f'<p class="sub-desc">Multi-Indicator Engine (EMA, RSI, MACD, Bollinger Bands) analyzing <b>{sel}</b>.</p>', unsafe_allow_html=True)
+st.markdown(f'<p class="vip-header">👑 Binance Pro Signal App <span class="vip-badge">VIP AI + SMC Pro</span></p>', unsafe_allow_html=True)
+st.markdown(f'<p class="sub-desc">Multi-Indicator & <b>Smart Money Concepts (LuxAlgo Style)</b> Engine analyzing <b>{sel}</b>.</p>', unsafe_allow_html=True)
 
 if page == "Live Signal":
     col1, col2 = st.columns([3, 1])
     with col1:
-        st.markdown(f"**Price:** ${price:,.4f} | **Change:** <span style='color: {'#059669' if change >= 0 else '#DC2626'};'>{change:,.2f}%</span> | **RSI:** <b>{ind['rsi']:.1f}</b>", unsafe_allow_html=True)
+        st.markdown(f"**Price:** ${price:,.4f} | **Change:** <span style='color: {'#059669' if change >= 0 else '#DC2626'};'>{change:,.2f}%</span> | **SMC Bias:** <b>{ind['smc_bias']}</b>", unsafe_allow_html=True)
     with col2:
         st.markdown(f'<div class="signal-box" style="background: {sig_color};">{signal}</div>', unsafe_allow_html=True)
 
@@ -394,14 +252,14 @@ if page == "Live Signal":
     st.components.v1.html(chart_html, height=410)
 
 elif page == "Advanced Analytics":
-    st.markdown("### 📊 Indicator Deep-Dive Metrics", unsafe_allow_html=True)
+    st.markdown("### 📊 Smart Money Concepts (SMC) & Indicator Deep-Dive", unsafe_allow_html=True)
     col1, col2 = st.columns(2)
     with col1:
-        st.metric(label="RSI Status (14)", value=f"{ind['rsi']:.2f}", delta="Oversold (<45)" if ind['rsi'] < 45 else "Overbought (>55)" if ind['rsi'] > 55 else "Neutral")
-        st.metric(label="MACD Value", value=f"{ind['macd']:.4f}", delta="Bullish" if ind['macd'] > ind['macd_signal'] else "Bearish")
+        st.metric(label="SMC Market Structure", value=ind['smc_bias'])
+        st.metric(label="RSI Status (14)", value=f"{ind['rsi']:.2f}")
     with col2:
-        st.metric(label="EMA 9 vs EMA 21", value="Uptrend" if ind['ema9'] > ind['ema21'] else "Downtrend")
-        st.metric(label="Bollinger Upper / Lower", value=f"${ind['upper_band']:,.2f} / ${ind['lower_band']:,.2f}")
+        st.metric(label="Bullish Order Block Active", value="Yes" if ind['bullish_ob'] else "No")
+        st.metric(label="Bearish Order Block Active", value="Yes" if ind['bearish_ob'] else "No")
 
 elif page == "Notepad":
     st.markdown('### 📝 VIP Trading Notepad', unsafe_allow_html=True)
