@@ -44,22 +44,24 @@ st.markdown("""
     </style>
 """, unsafe_allow_html=True)
 
-@st.cache_data(ttl=300)
+@st.cache_data(ttl=600, show_spinner=False)
 def get_coingecko_market_data(coin_id):
-    """CoinGecko API භාවිත කර දත්ත ලබා ගැනීම සහ තාක්ෂණික දර්ශක සඳහා DataFrame සැකසීම"""
+    """CoinGecko API භාවිත කර දත්ත ලබා ගැනීම සහ දෝෂ මඟහරවා ගැනීම"""
     try:
         url = f"https://api.coingecko.com/api/v3/coins/{coin_id}/market_chart?vs_currency=usd&days=7"
-        res = requests.get(url, timeout=5)
+        headers = {"User-Agent": "Mozilla/5.0"}
+        res = requests.get(url, headers=headers, timeout=8)
+        
         if res.status_code == 200:
             data = res.json()
-            prices = [x[1] for x in data['prices']]
-            
-            df = pd.DataFrame(prices, columns=['close'])
-            df['open'] = df['close'].shift(1).fillna(df['close'])
-            df['high'] = df['close'] * 1.008
-            df['low'] = df['close'] * 0.992
-            df['volume'] = 100000
-            return df
+            if 'prices' in data and len(data['prices']) > 0:
+                prices = [x[1] for x in data['prices']]
+                df = pd.DataFrame(prices, columns=['close'])
+                df['open'] = df['close'].shift(1).fillna(df['close'])
+                df['high'] = df['close'] * 1.008
+                df['low'] = df['close'] * 0.992
+                df['volume'] = 100000
+                return df
         return None
     except:
         return None
@@ -305,7 +307,7 @@ with st.sidebar:
         "PEOPLE/USDT": {"id": "constitutiondao", "sym": "BINANCE:PEOPLEUSDT"},
         "SPELL/USDT": {"id": "spell-token", "sym": "BINANCE:SPELLUSDT"},
         "JOE/USDT": {"id": "trader-joe", "sym": "BINANCE:JOEUSDT"},
-    
+        "1000RATS/USDT": {"id": "rats-ordinals", "sym": "BINANCE:1000RATSUSDT"}
     }
     
     sel = st.selectbox("Select Coin Pair", list(coins.keys()))
