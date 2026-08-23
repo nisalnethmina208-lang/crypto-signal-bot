@@ -3,7 +3,7 @@ import requests
 import pandas as pd
 import numpy as np
 
-st.set_page_config(page_title="Binance Pro Signal App VIP - 189 Coins", page_icon="👑", layout="wide")
+st.set_page_config(page_title="Binance Pro Signal App VIP - 189 Coins + ICT", page_icon="👑", layout="wide")
 
 # --- Password Protection Function ---
 def check_password():
@@ -117,7 +117,7 @@ def calculate_indicators(df):
     # 8. Volume Analysis
     vol_sma = volume.rolling(window=20).mean()
     
-    # 9. Smart Money Concepts (SMC) Logic
+    # 9. Smart Money Concepts (SMC) & ICT Additions
     df['rolling_high'] = high.rolling(window=5).max()
     df['rolling_low'] = low.rolling(window=5).min()
     
@@ -129,6 +129,16 @@ def calculate_indicators(df):
         smc_bias = "BULLISH_BOS" 
     elif close.iloc[-1] < df['rolling_low'].iloc[-2]:
         smc_bias = "BEARISH_BOS" 
+
+    # ICT Specific: Fair Value Gap (FVG) Detection
+    # Bullish FVG: Low of candle [i] > High of candle [i-2]
+    bullish_fvg = (low.iloc[-1] > high.iloc[-3]) if len(df) >= 3 else False
+    # Bearish FVG: High of candle [i] < Low of candle [i-2]
+    bearish_fvg = (high.iloc[-1] < low.iloc[-3]) if len(df) >= 3 else False
+
+    # ICT Specific: Liquidity Sweep / Raid (Taking out previous highs/lows and reversing)
+    liquidity_sweep_buy = (low.iloc[-1] < low.rolling(window=10).min().iloc[-2]) and (close.iloc[-1] > open.iloc[-1])
+    liquidity_sweep_sell = (high.iloc[-1] > high.rolling(window=10).max().iloc[-2]) and (close.iloc[-1] < open.iloc[-1])
 
     return {
         "price": close.iloc[-1],
@@ -146,12 +156,16 @@ def calculate_indicators(df):
         "vol_active": volume.iloc[-1] > vol_sma.iloc[-1] if not np.isnan(vol_sma.iloc[-1]) else True,
         "smc_bias": smc_bias,
         "bullish_ob": bullish_ob.iloc[-1],
-        "bearish_ob": bearish_ob.iloc[-1]
+        "bearish_ob": bearish_ob.iloc[-1],
+        "bullish_fvg": bullish_fvg,
+        "bearish_fvg": bearish_fvg,
+        "liquidity_sweep_buy": liquidity_sweep_buy,
+        "liquidity_sweep_sell": liquidity_sweep_sell
     }
 
 # Sidebar with 189 Binance Coins List
 with st.sidebar:
-    st.markdown("### 👑 VIP Pro Menu (189 Coins)")
+    st.markdown("### 👑 VIP Pro Menu (189 Coins + ICT)")
     page = st.selectbox("Navigation", ["Live Signal", "Advanced Analytics", "Notepad"])
     
     coins = {
@@ -383,21 +397,28 @@ if df is not None and not df.empty:
     # Volume Confirmation
     if ind["vol_active"]: score += 1
 
-    # SMC Weight Additions
+    # SMC & ICT Weight Additions
     if ind["smc_bias"] == "BULLISH_BOS": score += 2
     elif ind["smc_bias"] == "BEARISH_BOS": score -= 2
     
     if ind["bullish_ob"]: score += 1
     if ind["bearish_ob"]: score -= 1
 
-    if score >= 4:
-        signal = "STRONG BUY (VIP Confirmed) 🚀"
+    # ICT Specific Weights (Fair Value Gaps & Liquidity Sweeps)
+    if ind["bullish_fvg"]: score += 2
+    if ind["bearish_fvg"]: score -= 2
+
+    if ind["liquidity_sweep_buy"]: score += 3
+    if ind["liquidity_sweep_sell"]: score -= 3
+
+    if score >= 5:
+        signal = "STRONG BUY (ICT + VIP Confirmed) 🚀"
         sig_color = "#10B981"
     elif score >= 1:
         signal = "BUY 📈"
         sig_color = "#34D399"
-    elif score <= -4:
-        signal = "STRONG SELL (VIP Confirmed) 🔻"
+    elif score <= -5:
+        signal = "STRONG SELL (ICT + VIP Confirmed) 🔻"
         sig_color = "#EF4444"
     elif score <= -1:
         signal = "SELL 📉"
@@ -412,13 +433,13 @@ else:
     st.stop()
 
 # App Header
-st.markdown(f'<p class="vip-header">👑 Binance Pro Signal App <span class="vip-badge">189 Coins + AI + SMC</span></p>', unsafe_allow_html=True)
-st.markdown(f'<p class="sub-desc">Multi-Indicator Engine analyzing <b>{sel}</b> to provide accurate Buy/Sell signals.</p>', unsafe_allow_html=True)
+st.markdown(f'<p class="vip-header">👑 Binance Pro Signal App <span class="vip-badge">189 Coins + AI + ICT</span></p>', unsafe_allow_html=True)
+st.markdown(f'<p class="sub-desc">Multi-Indicator & ICT Engine analyzing <b>{sel}</b> to provide accurate Buy/Sell signals.</p>', unsafe_allow_html=True)
 
 if page == "Live Signal":
     col1, col2 = st.columns([3, 1])
     with col1:
-        st.markdown(f"**Price:** ${price:,.4f} | **Change:** <span style='color: {'#059669' if change >= 0 else '#DC2626'};'>{change:,.2f}%</span> | **SMC Bias:** <b>{ind['smc_bias']}</b>", unsafe_allow_html=True)
+        st.markdown(f"**Price:** ${price:,.4f} | **Change:** <span style='color: {'#059669' if change >= 0 else '#DC2626'};'>{change:,.2f}%</span> | **SMC/ICT Bias:** <b>{ind['smc_bias']}</b>", unsafe_allow_html=True)
     with col2:
         st.markdown(f'<div class="signal-box" style="background: {sig_color};">{signal}</div>', unsafe_allow_html=True)
 
@@ -447,18 +468,18 @@ if page == "Live Signal":
     st.components.v1.html(chart_html, height=410)
 
 elif page == "Advanced Analytics":
-    st.markdown("### 📊 Advanced Technical Indicators Deep-Dive", unsafe_allow_html=True)
+    st.markdown("### 📊 ICT & Advanced Technical Indicators Deep-Dive", unsafe_allow_html=True)
     col1, col2 = st.columns(2)
     with col1:
-        st.metric(label="SMC Market Structure", value=ind['smc_bias'])
-        st.metric(label="RSI Status (14)", value=f"{ind['rsi']:.2f}")
-        st.metric(label="Stochastic %K", value=f"{ind['stoch_k']:.2f}")
-        st.metric(label="Commodity Channel Index (CCI)", value=f"{ind['cci']:.2f}")
+        st.metric(label="Market Structure / BOS", value=ind['smc_bias'])
+        st.metric(label="ICT Bullish FVG Active", value="Yes" if ind['bullish_fvg'] else "No")
+        st.metric(label="ICT Bearish Fvg Active", value="Yes" if ind['bearish_fvg'] else "No")
+        st.metric(label="Liquidity Sweep Buy", value="Yes" if ind['liquidity_sweep_buy'] else "No")
     with col2:
+        st.metric(label="Liquidity Sweep Sell", value="Yes" if ind['liquidity_sweep_sell'] else "No")
+        st.metric(label="Bullish Order Block", value="Yes" if ind['bullish_ob'] else "No")
+        st.metric(label="Bearish Order Block", value="Yes" if ind['bearish_ob'] else "No")
         st.metric(label="ATR (Volatility)", value=f"${ind['atr']:.4f}")
-        st.metric(label="Volume Spike Active", value="Yes" if ind['vol_active'] else "No")
-        st.metric(label="Bullish Order Block Active", value="Yes" if ind['bullish_ob'] else "No")
-        st.metric(label="Bearish Order Block Active", value="Yes" if ind['bearish_ob'] else "No")
 
 elif page == "Notepad":
     st.markdown('### 📝 VIP Trading Notepad', unsafe_allow_html=True)
