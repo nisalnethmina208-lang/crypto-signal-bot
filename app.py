@@ -46,7 +46,6 @@ st.markdown("""
 
 @st.cache_data(ttl=600, show_spinner=False)
 def get_coingecko_market_data(coin_id):
-    """CoinGecko API භාවිත කර දත්ත ලබා ගැනීම"""
     try:
         url = f"https://api.coingecko.com/api/v3/coins/{coin_id}/market_chart?vs_currency=usd&days=7"
         headers = {"User-Agent": "Mozilla/5.0"}
@@ -56,7 +55,6 @@ def get_coingecko_market_data(coin_id):
             data = res.json()
             if 'prices' in data and len(data['prices']) > 0:
                 prices = [x[1] for x in data['prices']]
-                # වෙළඳපොළ පරිමාව (Volume) සඳහාද දත්ත ලබා ගැනීමට උත්සාහ කරමු
                 volumes = [x[1] for x in data['total_volumes']] if 'total_volumes' in data else [100000] * len(prices)
                 
                 df = pd.DataFrame(prices, columns=['close'])
@@ -76,11 +74,9 @@ def calculate_advanced_indicators(df):
     open_p = df['open']
     volume = df['volume']
     
-    # 1. Trend & Moving Averages
     ema9 = close.ewm(span=9, adjust=False).mean()
     ema21 = close.ewm(span=21, adjust=False).mean()
     
-    # 2. RSI & ATR
     delta = close.diff()
     gain = (delta.where(delta > 0, 0)).rolling(window=14).mean()
     loss = (-delta.where(delta < 0, 0)).rolling(window=14).mean()
@@ -92,7 +88,6 @@ def calculate_advanced_indicators(df):
     tr3 = (low - close.shift()).abs()
     atr = pd.concat([tr1, tr2, tr3], axis=1).max(axis=1).rolling(window=14).mean()
 
-    # --- SMC & ICT CORE LOGIC ---
     df['swing_high'] = high.rolling(window=5).max()
     df['swing_low'] = low.rolling(window=5).min()
     
@@ -121,17 +116,13 @@ def calculate_advanced_indicators(df):
     else:
         zone = "Discount Zone (Buy Area)"
 
-    # --- NEW: VOLUME ANALYSIS ---
     avg_volume = volume.rolling(window=14).mean().iloc[-1]
     current_volume = volume.iloc[-1]
     high_volume_spike = current_volume > (avg_volume * 1.5)
 
-    # --- NEW: ORDER FLOW ANALYSIS (Delta/Buying Pressure) ---
     buying_pressure = current_close > open_p.iloc[-1] and high_volume_spike
     selling_pressure = current_close < open_p.iloc[-1] and high_volume_spike
 
-    # --- NEW: ELLIOTT WAVE SIMPLIFIED LOGIC ---
-    # සරල තරංග රටාවක් පදනම් කර ගනිමින් Impulse හෝ Correction බව තීරණය කිරීම
     price_diff_5 = close.diff(5).iloc[-1]
     elliott_wave_phase = "Impulse Wave (Trend Continuing)" if price_diff_5 != 0 else "Correction Phase"
     elliott_bullish = price_diff_5 > 0
@@ -160,7 +151,7 @@ def calculate_advanced_indicators(df):
         "elliott_bearish": elliott_bearish
     }
 
-# Sidebar with 197+ Coins
+# Sidebar with Full 235+ Coins List
 with st.sidebar:
     st.markdown("### 👑 VIP Menu (Advanced Master)")
     page = st.selectbox("පිටුව තෝරන්න (Navigation)", ["Live Signal", "Advanced Analytics", "Notepad"])
@@ -326,7 +317,6 @@ with st.sidebar:
         "FXS/USDT": {"id": "frax-share", "sym": "BINANCE:FXSUSDT"},
         "FDUSD/USDT": {"id": "first-digital-usd", "sym": "BINANCE:FDUSDUSDT"},
         "USDC/USDT": {"id": "usd-coin", "sym": "BINANCE:USDCUSDT"},
-        "TURBO/USDT": {"id": "turbo", "sym": "BINANCE:TURBOUSDT"},
         "CATI/USDT": {"id": "cati", "sym": "BINANCE:CATIUSDT"},
         "HMSTR/USDT": {"id": "hamster-kombat", "sym": "BINANCE:HMSTRUSDT"},
         "EIGEN/USDT": {"id": "eigenlayer", "sym": "BINANCE:EIGENUSDT"},
@@ -340,7 +330,6 @@ with st.sidebar:
     coin_id = coins[sel]["id"]
     tv_sym = coins[sel]["sym"]
 
-# Fetch data & Calculate indicators
 df = get_coingecko_market_data(coin_id)
 
 if df is not None and not df.empty:
@@ -363,22 +352,24 @@ if df is not None and not df.empty:
     if ind["liquidity_sweep_buy"]: score += 3
     if ind["liquidity_sweep_sell"]: score -= 3
 
-    # New Additions to Score
     if ind["buying_pressure"]: score += 2
     if ind["selling_pressure"]: score -= 2
     if ind["elliott_bullish"]: score += 1
     if ind["elliott_bearish"]: score -= 1
 
-    if "Discount" in ind["zone"] and score > 0: score += 1
-    elif "Premium" in ind["zone"] and score < 0: score -= 1
+    # Zone Correction Logic
+    if "Discount" in ind["zone"]:
+        score += 2
+    else:
+        score -= 2
 
-    if score >= 6:
+    if score >= 5:
         signal = "STRONG BUY (Advanced Verified) 🚀"
         sig_color = "#10B981"
     elif score >= 2:
         signal = "BUY (Bullish Momentum) 📈"
         sig_color = "#34D399"
-    elif score <= -6:
+    elif score <= -5:
         signal = "STRONG SELL (Advanced Verified) 🔻"
         sig_color = "#EF4444"
     elif score <= -2:
@@ -390,12 +381,11 @@ if df is not None and not df.empty:
 
     is_buy = "BUY" in signal
 else:
-    st.error("දත්ත ලබා ගැනීම අසාර්ථක විය. කරුණාකර අන්තර්ජාල සම්බන්ධතාවය පරීක්ෂා කරන්න.")
+    st.error("දත්ත ලබා ගැනීම අසාර්ථක විය.")
     st.stop()
 
-# App Header
 st.markdown(f'<p class="vip-header">👑 Binance Pro Signal App <span class="vip-badge">Advanced Master</span></p>', unsafe_allow_html=True)
-st.markdown(f'<p class="sub-desc"><b>{sel}</b> සඳහා SMC, ICT, Elliott Wave, Order Flow සහ Volume දත්ත පදනම් කර සකස් කළ සංඥා පද්ධතිය.</p>', unsafe_allow_html=True)
+st.markdown(f'<p class="sub-desc"><b>{sel}</b> සඳහා SMC, ICT, Elliott Wave සහ Volume දත්ත පදනම් කර සකස් කළ සංඥා පද්ධතිය.</p>', unsafe_allow_html=True)
 
 if page == "Live Signal":
     col1, col2 = st.columns([3, 1])
@@ -404,9 +394,14 @@ if page == "Live Signal":
     with col2:
         st.markdown(f'<div class="signal-box" style="background: {sig_color};">{signal}</div>', unsafe_allow_html=True)
 
-    tp1 = price + (ind['atr'] * 1.5) if is_buy else price - (ind['atr'] * 1.5)
-    tp2 = price + (ind['atr'] * 3.0) if is_buy else price - (ind['atr'] * 3.0)
-    sl = price - (ind['atr'] * 1.0) if is_buy else price + (ind['atr'] * 1.0)
+    if is_buy:
+        tp1 = price + (ind['atr'] * 1.5)
+        tp2 = price + (ind['atr'] * 3.0)
+        sl = price - (ind['atr'] * 1.0)
+    else:
+        tp1 = price - (ind['atr'] * 1.5)
+        tp2 = price - (ind['atr'] * 3.0)
+        sl = price + (ind['atr'] * 1.0)
 
     st.markdown("<br>", unsafe_allow_html=True)
     c1, c2, c3, c4 = st.columns(4)
@@ -447,6 +442,6 @@ elif page == "Notepad":
     if 'note' not in st.session_state: 
         st.session_state.note = ""
     st.session_state.note = st.text_area("Note", value=st.session_state.note, height=200, label_visibility="collapsed", placeholder="ඔබේ සටහන් මෙහි ලියා තබා ගන්න...")
-    if st.button("සටහන් මحو කරන්න (Clear)"): 
+    if st.button("සටහන් මකා දමන්න (Clear)"): 
         st.session_state.note = ""
         st.rerun()
