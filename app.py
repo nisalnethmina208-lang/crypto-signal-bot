@@ -134,7 +134,6 @@ def calculate_advanced_indicators(df):
     tr3 = (low - close.shift()).abs()
     atr = pd.concat([tr1, tr2, tr3], axis=1).max(axis=1).rolling(window=14).mean()
 
-    # Market Structure (BOS & Trend Validation)
     current_close = close.iloc[-1]
     
     # Volume Analysis
@@ -180,19 +179,19 @@ if df is not None and not df.empty:
     price = ind["price"]
     change = ((price - df['open'].iloc[0]) / df['open'].iloc[0]) * 100
     
-    # --- Accurate Scoring Logic (Avoiding False Signals) ---
+    # --- Accurate Scoring Logic ---
     score = 0
     
     # Trend Filter (EMA)
     if ind["ema9"] > ind["ema21"] > ind["ema50"]: score += 2
     elif ind["ema9"] < ind["ema21"] < ind["ema50"]: score -= 2
     
-    # RSI Filter (Overbought / Oversold conditions)
+    # RSI Filter
     if 45 <= ind["rsi"] <= 65:
         if ind["ema9"] > ind["ema21"]: score += 1
         else: score -= 1
-    elif ind["rsi'] < 35: score += 2  # Oversold (Potential Buy)
-    elif ind["rsi'] > 65: score -= 2  # Overbought (Potential Sell)
+    elif ind["rsi"] < 35: score += 2  # Oversold (Potential Buy)
+    elif ind["rsi"] > 65: score -= 2  # Overbought (Potential Sell)
 
     # MACD Histogram Momentum
     if ind["macd_hist"] > 0: score += 1
@@ -301,4 +300,4 @@ elif page == "Notepad":
     st.session_state.note = st.text_area("Note", value=st.session_state.note, height=200, label_visibility="collapsed")
     if st.button("Clear Notes"): 
         st.session_state.note = ""
-        st.session_state.rerun()
+        st.rerun()
