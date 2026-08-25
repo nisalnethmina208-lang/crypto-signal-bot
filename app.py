@@ -3,7 +3,7 @@ import requests
 import pandas as pd
 import numpy as np
 
-st.set_page_config(page_title="Binance Signal App VIP - 100+ Coins", page_icon="👑", layout="wide")
+st.set_page_config(page_title="Binance Signal App VIP - 210+ Coins", page_icon="👑", layout="wide")
 
 # --- Password Protection Function ---
 def check_password():
@@ -43,11 +43,11 @@ st.markdown("""
     </style>
 """, unsafe_allow_html=True)
 
-# Fetch Top Coins from CoinGecko API (Over 100+ Coins)
+# Fetch Top 210+ Coins from CoinGecko API
 @st.cache_data(ttl=3600, show_spinner=False)
 def get_top_coins_list():
     try:
-        url = "https://api.coingecko.com/api/v3/coins/markets?vs_currency=usd&order=market_cap_desc&per_page=120&page=1&sparkline=false"
+        url = "https://api.coingecko.com/api/v3/coins/markets?vs_currency=usd&order=market_cap_desc&per_page=210&page=1&sparkline=false"
         headers = {"User-Agent": "Mozilla/5.0"}
         res = requests.get(url, headers=headers, timeout=10)
         if res.status_code == 200:
@@ -61,19 +61,14 @@ def get_top_coins_list():
             return coins_dict
     except:
         pass
-    
+     
     # Fallback default list if API fails
     return {
         "BTC/USDT": {"id": "bitcoin", "sym": "BINANCE:BTCUSDT"},
         "ETH/USDT": {"id": "ethereum", "sym": "BINANCE:ETHUSDT"},
         "BNB/USDT": {"id": "binancecoin", "sym": "BINANCE:BNBUSDT"},
         "SOL/USDT": {"id": "solana", "sym": "BINANCE:SOLUSDT"},
-        "XRP/USDT": {"id": "ripple", "sym": "BINANCE:XRPUSDT"},
-        "ADA/USDT": {"id": "cardano", "sym": "BINANCE:ADAUSDT"},
-        "DOGE/USDT": {"id": "dogecoin", "sym": "BINANCE:DOGEUSDT"},
-        "AVAX/USDT": {"id": "avalanche-2", "sym": "BINANCE:AVAXUSDT"},
-        "PEPE/USDT": {"id": "pepe", "sym": "BINANCE:PEPEUSDT"},
-        "SHIB/USDT": {"id": "shiba-inu", "sym": "BINANCE:SHIBUSDT"}
+        "XRP/USDT": {"id": "ripple", "sym": "BINANCE:XRPUSDT"}
     }
 
 coins = get_top_coins_list()
@@ -81,7 +76,7 @@ coins = get_top_coins_list()
 @st.cache_data(ttl=600, show_spinner=False)
 def get_coingecko_market_data(coin_id):
     try:
-        url = f"https://api.coingecko.com/api/v3/coins/{coin_id}/market_chart?vs_currency=usd&days=7"
+        url = f"https://api.coingecko.com/api/v3/coins/{coin_id}/market_chart?vs_currency=usd&days=14"
         headers = {"User-Agent": "Mozilla/5.0"}
         res = requests.get(url, headers=headers, timeout=8)
         
@@ -94,8 +89,8 @@ def get_coingecko_market_data(coin_id):
                 df = pd.DataFrame(prices, columns=['close'])
                 df['volume'] = volumes[:len(df)]
                 df['open'] = df['close'].shift(1).fillna(df['close'])
-                df['high'] = df['close'] * 1.008
-                df['low'] = df['close'] * 0.992
+                df['high'] = df['close'] * 1.006
+                df['low'] = df['close'] * 0.994
                 return df
         return None
     except:
@@ -108,86 +103,73 @@ def calculate_advanced_indicators(df):
     open_p = df['open']
     volume = df['volume']
     
+    # Moving Averages (EMA 9, 21, 50)
     ema9 = close.ewm(span=9, adjust=False).mean()
     ema21 = close.ewm(span=21, adjust=False).mean()
+    ema50 = close.ewm(span=50, adjust=False).mean()
     
+    # RSI (14)
     delta = close.diff()
     gain = (delta.where(delta > 0, 0)).rolling(window=14).mean()
     loss = (-delta.where(delta < 0, 0)).rolling(window=14).mean()
     rs = gain / loss
     rsi = 100 - (100 / (1 + rs))
     
+    # MACD
     exp1 = close.ewm(span=12, adjust=False).mean()
     exp2 = close.ewm(span=26, adjust=False).mean()
     macd_line = exp1 - exp2
     signal_line = macd_line.ewm(span=9, adjust=False).mean()
     macd_hist = macd_line - signal_line
 
+    # Bollinger Bands
     sma20 = close.rolling(window=20).mean()
     std20 = close.rolling(window=20).std()
     bb_upper = sma20 + (std20 * 2)
     bb_lower = sma20 - (std20 * 2)
     
+    # ATR (Average True Range) for SL / TP
     tr1 = high - low
     tr2 = (high - close.shift()).abs()
     tr3 = (low - close.shift()).abs()
     atr = pd.concat([tr1, tr2, tr3], axis=1).max(axis=1).rolling(window=14).mean()
 
-    df['swing_high'] = high.rolling(window=5).max()
-    df['swing_low'] = low.rolling(window=5).min()
-    
+    # Market Structure (BOS & Trend Validation)
     current_close = close.iloc[-1]
-    prev_high = df['swing_high'].iloc[-2] if len(df) >= 2 else high.iloc[-1]
-    prev_low = df['swing_low'].iloc[-2] if len(df) >= 2 else low.iloc[-1]
     
-    bos_bullish = current_close > prev_high
-    bos_bearish = current_close < prev_low
-    
-    bullish_ob = (current_close > open_p.iloc[-1]) and (close.iloc[-2] < open_p.iloc[-2]) if len(df) >= 2 else False
-    bearish_ob = (current_close < open_p.iloc[-1]) and (close.iloc[-2] > open_p.iloc[-2]) if len(df) >= 2 else False
+    # Volume Analysis
+    avg_volume = volume.rolling(window=14).mean().iloc[-1]
+    current_volume = volume.iloc[-1]
+    high_volume_spike = current_volume > (avg_volume * 1.3)
 
+    # Premium / Discount Zones
     range_high = high.rolling(window=20).max().iloc[-1]
     range_low = low.rolling(window=20).min().iloc[-1]
     equilibrium = (range_high + range_low) / 2
-    zone = "Premium Zone (Sell Area)" if current_close > equilibrium else "Discount Zone (Buy Area)"
-
-    avg_volume = volume.rolling(window=14).mean().iloc[-1]
-    current_volume = volume.iloc[-1]
-    high_volume_spike = current_volume > (avg_volume * 1.5)
-
-    buying_pressure = current_close > open_p.iloc[-1] and high_volume_spike
-    selling_pressure = current_close < open_p.iloc[-1] and high_volume_spike
-
-    price_diff_5 = close.diff(5).iloc[-1] if len(df) >= 5 else 0
-    elliott_wave_phase = "Impulse Wave (Trend Continuing)" if price_diff_5 != 0 else "Correction Phase"
+    zone = "Premium Zone (Sell/Short Area)" if current_close > equilibrium else "Discount Zone (Buy/Long Area)"
 
     return {
         "price": current_close,
         "ema9": ema9.iloc[-1],
         "ema21": ema21.iloc[-1],
+        "ema50": ema50.iloc[-1],
         "rsi": rsi.iloc[-1] if not np.isnan(rsi.iloc[-1]) else 50.0,
         "macd": macd_line.iloc[-1] if not np.isnan(macd_line.iloc[-1]) else 0.0,
         "macd_signal": signal_line.iloc[-1] if not np.isnan(signal_line.iloc[-1]) else 0.0,
+        "macd_hist": macd_hist.iloc[-1] if not np.isnan(macd_hist.iloc[-1]) else 0.0,
         "bb_upper": bb_upper.iloc[-1] if not np.isnan(bb_upper.iloc[-1]) else current_close * 1.02,
         "bb_lower": bb_lower.iloc[-1] if not np.isnan(bb_lower.iloc[-1]) else current_close * 0.98,
         "atr": atr.iloc[-1] if not np.isnan(atr.iloc[-1]) else current_close * 0.01,
-        "bos_bullish": bos_bullish,
-        "bos_bearish": bos_bearish,
-        "bullish_ob": bullish_ob,
-        "bearish_ob": bearish_ob,
         "zone": zone,
-        "volume_spike": high_volume_spike,
-        "buying_pressure": buying_pressure,
-        "selling_pressure": selling_pressure,
-        "elliott_phase": elliott_wave_phase
+        "volume_spike": high_volume_spike
     }
 
 # Sidebar with Coins List
 with st.sidebar:
-    st.markdown("### 👑 VIP Menu")
+    st.markdown("### 👑 VIP Menu (210+ Coins)")
     page = st.selectbox("Navigation", ["Live Signal", "Advanced Analytics", "Notepad"])
     
-    sel = st.selectbox("Select Coin Pair (100+ Available)", list(coins.keys()))
+    sel = st.selectbox("Select Coin Pair", list(coins.keys()))
     coin_id = coins[sel]["id"]
     tv_sym = coins[sel]["sym"]
 
@@ -198,39 +180,51 @@ if df is not None and not df.empty:
     price = ind["price"]
     change = ((price - df['open'].iloc[0]) / df['open'].iloc[0]) * 100
     
+    # --- Accurate Scoring Logic (Avoiding False Signals) ---
     score = 0
-    if ind["ema9"] > ind["ema21"]: score += 1
-    else: score -= 1
-    if ind["rsi"] > 55: score += 1
-    elif ind["rsi"] < 45: score -= 1
-    if ind["macd"] > ind["macd_signal"]: score += 1
-    else: score -= 1
-    if ind["bos_bullish"]: score += 2
-    if ind["bos_bearish"]: score -= 2
-    if ind["bullish_ob"]: score += 2
-    if ind["bearish_ob"]: score -= 2
-    if ind["buying_pressure"]: score += 2
-    if ind["selling_pressure"]: score -= 2
-    if "Discount" in ind["zone"]: score += 2
-    else: score -= 2
+    
+    # Trend Filter (EMA)
+    if ind["ema9"] > ind["ema21"] > ind["ema50"]: score += 2
+    elif ind["ema9"] < ind["ema21"] < ind["ema50"]: score -= 2
+    
+    # RSI Filter (Overbought / Oversold conditions)
+    if 45 <= ind["rsi"] <= 65:
+        if ind["ema9"] > ind["ema21"]: score += 1
+        else: score -= 1
+    elif ind["rsi'] < 35: score += 2  # Oversold (Potential Buy)
+    elif ind["rsi'] > 65: score -= 2  # Overbought (Potential Sell)
 
+    # MACD Histogram Momentum
+    if ind["macd_hist"] > 0: score += 1
+    else: score -= 1
+
+    # Volume Confirmation
+    if ind["volume_spike"]:
+        if score > 0: score += 1
+        elif score < 0: score -= 1
+
+    # Zone Weighting
+    if "Discount" in ind["zone"] and score > 0: score += 1
+    elif "Premium" in ind["zone"] and score < 0: score -= 1
+
+    # Final Signal Determination
     if score >= 4:
         signal, sig_color = "STRONG BUY 🚀", "#10B981"
-    elif score >= 1:
+    elif score >= 2:
         signal, sig_color = "BUY 📈", "#34D399"
     elif score <= -4:
         signal, sig_color = "STRONG SELL 🔻", "#EF4444"
-    elif score <= -1:
+    elif score <= -2:
         signal, sig_color = "SELL 📉", "#F87171"
     else:
         signal, sig_color = "HOLD / NEUTRAL ⚖️", "#F59E0B"
 
     is_buy = "BUY" in signal
 else:
-    st.error("දත්ත ලබා ගැනීම අසාර්ථක විය.")
+    st.error("දත්ත ලබා ගැනීම අසාර්ථක විය. කරුණාකර මොහොතަކින් උත්සාහ කරන්න.")
     st.stop()
 
-st.markdown('<p class="vip-header">👑 Binance Signal App VIP <span class="vip-badge">VIP Pro</span></p>', unsafe_allow_html=True)
+st.markdown('<p class="vip-header">👑 Binance Signal App VIP <span class="vip-badge">210+ Coins Pro</span></p>', unsafe_allow_html=True)
 st.markdown(f'<p class="sub-desc">Real-time automated technical signals and targets for <b>{sel}</b>.</p>', unsafe_allow_html=True)
 
 if page == "Live Signal":
@@ -240,14 +234,15 @@ if page == "Live Signal":
     with col2:
         st.markdown(f'<div class="signal-box" style="background: {sig_color};">{signal}</div>', unsafe_allow_html=True)
 
+    # Risk-Reward ATR Based Targets
     if is_buy:
         tp1 = price + (ind['atr'] * 1.5)
         tp2 = price + (ind['atr'] * 3.0)
-        sl = price - (ind['atr'] * 1.0)
+        sl = price - (ind['atr'] * 1.2)
     else:
         tp1 = price - (ind['atr'] * 1.5)
         tp2 = price - (ind['atr'] * 3.0)
-        sl = price + (ind['atr'] * 1.0)
+        sl = price + (ind['atr'] * 1.2)
 
     st.markdown("<br>", unsafe_allow_html=True)
     c1, c2, c3, c4 = st.columns(4)
@@ -258,7 +253,7 @@ if page == "Live Signal":
 
     st.markdown("<br>", unsafe_allow_html=True)
     
-    # TradingView Chart with Indicators (RSI, MACD, Bollinger Bands)
+    # TradingView Chart
     chart_html = f"""
     <div class="tradingview-widget-container" style="height:450px;width:100%">
       <div id="tv_chart" style="height:100%;width:100%"></div>
@@ -288,16 +283,16 @@ if page == "Live Signal":
     st.components.v1.html(chart_html, height=460)
 
 elif page == "Advanced Analytics":
-    st.markdown("### 📊 උසස් වෙළඳ විශ්ලේෂණය", unsafe_allow_html=True)
+    st.markdown("### 📊 උසස් වෙළඳ විශ්ලේෂණය (Advanced Metrics)", unsafe_allow_html=True)
     col1, col2 = st.columns(2)
     with col1:
         st.metric(label="Market Zone", value=ind['zone'])
-        st.metric(label="Elliott Wave Phase", value=ind['elliott_phase'])
         st.metric(label="RSI (14)", value=f"{ind['rsi']:.2f}")
+        st.metric(label="MACD Histogram", value=f"{ind['macd_hist']:.4f}")
     with col2:
         st.metric(label="Bollinger Upper Band", value=f"${ind['bb_upper']:,.2f}")
-        st.metric(label="Volume Spike", value="Yes" if ind['volume_spike'] else "No")
-        st.metric(label="ATR Volatility", value=f"${ind['atr']:.4f}")
+        st.metric(label="Volume Spike Status", value="Active 🚀" if ind['volume_spike'] else "Normal ⚖️")
+        st.metric(label="ATR Volatility (SL Guide)", value=f"${ind['atr']:.4f}")
 
 elif page == "Notepad":
     st.markdown('### 📝 VIP Trading Notepad', unsafe_allow_html=True)
@@ -306,4 +301,4 @@ elif page == "Notepad":
     st.session_state.note = st.text_area("Note", value=st.session_state.note, height=200, label_visibility="collapsed")
     if st.button("Clear Notes"): 
         st.session_state.note = ""
-        st.rerun()
+        st.session_state.rerun()
