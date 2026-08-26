@@ -227,9 +227,9 @@ if df is not None and not df.empty:
 
     # 4. Real-time MSNR & Premium/Discount Confluence
     if ind["msnr_zone_type"] == "Demand":
-        score += 3  price reacting precisely at MSNR Support!
+        score += 3  # price reacting precisely at MSNR Support!
     elif ind["msnr_zone_type"] == "Supply":
-        score -= 3  price reacting precisely at MSNR Resistance!
+        score -= 3  # price reacting precisely at MSNR Resistance!
     
     if "Discount" in ind["zone"] and score > 0: score += 1
     elif "Premium" in ind["zone"] and score < 0: score -= 1
