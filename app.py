@@ -147,6 +147,23 @@ def calculate_advanced_indicators(df):
     equilibrium = (range_high + range_low) / 2
     zone = "Premium Zone (Sell/Short Area)" if current_close > equilibrium else "Discount Zone (Buy/Long Area)"
 
+    # --- MSNR (Malaysian Support and Resistance) Logic Integration ---
+    # MSNR focuses on candle body reactions (Open/Close) and localized swing structures
+    body_high = pd.concat([open_p, close], axis=1).max(axis=1)
+    body_low = pd.concat([open_p, close], axis=1).min(axis=1)
+    
+    # Finding MSNR Key Levels (Support / Resistance based on body extremes)
+    msnr_resistance = body_high.rolling(window=10).max().iloc[-1]
+    msnr_support = body_low.rolling(window=10).min().iloc[-1]
+    
+    # MSNR Zone Status Check
+    if current_close >= msnr_resistance * 0.995:
+        msnr_status = "At MSNR Resistance (Supply Zone 🔴)"
+    elif current_close <= msnr_support * 1.005:
+        msnr_status = "At MSNR Support (Demand Zone 🟢)"
+    else:
+        msnr_status = "Midway in MSNR Range ⚖️"
+
     return {
         "price": current_close,
         "ema9": ema9.iloc[-1],
@@ -160,7 +177,10 @@ def calculate_advanced_indicators(df):
         "bb_lower": bb_lower.iloc[-1] if not np.isnan(bb_lower.iloc[-1]) else current_close * 0.98,
         "atr": atr.iloc[-1] if not np.isnan(atr.iloc[-1]) else current_close * 0.01,
         "zone": zone,
-        "volume_spike": high_volume_spike
+        "volume_spike": high_volume_spike,
+        "msnr_support": msnr_support,
+        "msnr_resistance": msnr_resistance,
+        "msnr_status": msnr_status
     }
 
 # Sidebar with Coins List
@@ -202,9 +222,12 @@ if df is not None and not df.empty:
         if score > 0: score += 1
         elif score < 0: score -= 1
 
-    # Zone Weighting
+    # Zone Weighting & MSNR Integration
     if "Discount" in ind["zone"] and score > 0: score += 1
     elif "Premium" in ind["zone"] and score < 0: score -= 1
+    
+    if "Demand Zone" in ind["msnr_status"]: score += 2
+    elif "Supply Zone" in ind["msnr_status"]: score -= 2
 
     # Final Signal Determination
     if score >= 4:
@@ -229,7 +252,7 @@ st.markdown(f'<p class="sub-desc">Real-time automated technical signals and targ
 if page == "Live Signal":
     col1, col2 = st.columns([3, 1])
     with col1:
-        st.markdown(f"**Price:** ${price:,.4f} | **Change:** <span style='color: {'#059669' if change >= 0 else '#DC2626'};'>{change:,.2f}%</span> | **Zone:** <b>{ind['zone']}</b>", unsafe_allow_html=True)
+        st.markdown(f"**Price:** ${price:,.4f} | **Change:** <span style='color: {'#059669' if change >= 0 else '#DC2626'};'>{change:,.2f}%</span> | **MSNR:** <b>{ind['msnr_status']}</b>", unsafe_allow_html=True)
     with col2:
         st.markdown(f'<div class="signal-box" style="background: {sig_color};">{signal}</div>', unsafe_allow_html=True)
 
@@ -285,11 +308,13 @@ elif page == "Advanced Analytics":
     st.markdown("### 📊 උසස් වෙළඳ විශ්ලේෂණය (Advanced Metrics)", unsafe_allow_html=True)
     col1, col2 = st.columns(2)
     with col1:
-        st.metric(label="Market Zone", value=ind['zone'])
+        st.metric(label="MSNR Status", value=ind['msnr_status'])
+        st.metric(label="MSNR Support (Demand)", value=f"${ind['msnr_support']:,.4f}")
+        st.metric(label="MSNR Resistance (Supply)", value=f"${ind['msnr_resistance']:,.4f}")
         st.metric(label="RSI (14)", value=f"{ind['rsi']:.2f}")
-        st.metric(label="MACD Histogram", value=f"{ind['macd_hist']:.4f}")
     with col2:
-        st.metric(label="Bollinger Upper Band", value=f"${ind['bb_upper']:,.2f}")
+        st.metric(label="Market Zone", value=ind['zone'])
+        st.metric(label="MACD Histogram", value=f"{ind['macd_hist']:.4f}")
         st.metric(label="Volume Spike Status", value="Active 🚀" if ind['volume_spike'] else "Normal ⚖️")
         st.metric(label="ATR Volatility (SL Guide)", value=f"${ind['atr']:.4f}")
 
