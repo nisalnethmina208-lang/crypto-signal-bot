@@ -3,7 +3,7 @@ import requests
 import pandas as pd
 import numpy as np
 
-st.set_page_config(page_title="Binance Signal App VIP - 210+ Coins", page_icon="👑", layout="wide")
+st.set_page_config(page_title="Binance Signal App VIP - Real-time MSNR Pro", page_icon="👑", layout="wide")
 
 # --- Password Protection Function ---
 def check_password():
@@ -73,7 +73,7 @@ def get_top_coins_list():
 
 coins = get_top_coins_list()
 
-@st.cache_data(ttl=600, show_spinner=False)
+@st.cache_data(ttl=300, show_spinner=False)
 def get_coingecko_market_data(coin_id):
     try:
         url = f"https://api.coingecko.com/api/v3/coins/{coin_id}/market_chart?vs_currency=usd&days=14"
@@ -96,7 +96,7 @@ def get_coingecko_market_data(coin_id):
     except:
         return None
 
-def calculate_advanced_indicators(df):
+def calculate_realtime_confluence_indicators(df):
     close = df['close']
     high = df['high']
     low = df['low']
@@ -136,10 +136,10 @@ def calculate_advanced_indicators(df):
 
     current_close = close.iloc[-1]
     
-    # Volume Analysis
+    # Real-time Volume Spike Analysis
     avg_volume = volume.rolling(window=14).mean().iloc[-1]
     current_volume = volume.iloc[-1]
-    high_volume_spike = current_volume > (avg_volume * 1.3)
+    high_volume_spike = current_volume > (avg_volume * 1.25)
 
     # Premium / Discount Zones
     range_high = high.rolling(window=20).max().iloc[-1]
@@ -147,22 +147,29 @@ def calculate_advanced_indicators(df):
     equilibrium = (range_high + range_low) / 2
     zone = "Premium Zone (Sell/Short Area)" if current_close > equilibrium else "Discount Zone (Buy/Long Area)"
 
-    # --- MSNR (Malaysian Support and Resistance) Logic Integration ---
-    # MSNR focuses on candle body reactions (Open/Close) and localized swing structures
+    # --- Real-time MSNR (Malaysian Support and Resistance) Confluence Engine ---
     body_high = pd.concat([open_p, close], axis=1).max(axis=1)
     body_low = pd.concat([open_p, close], axis=1).min(axis=1)
     
-    # Finding MSNR Key Levels (Support / Resistance based on body extremes)
     msnr_resistance = body_high.rolling(window=10).max().iloc[-1]
     msnr_support = body_low.rolling(window=10).min().iloc[-1]
     
-    # MSNR Zone Status Check
-    if current_close >= msnr_resistance * 0.995:
-        msnr_status = "At MSNR Resistance (Supply Zone 🔴)"
-    elif current_close <= msnr_support * 1.005:
-        msnr_status = "At MSNR Support (Demand Zone 🟢)"
+    # Real-time reaction check with tolerance range
+    distance_to_res = abs(current_close - msnr_resistance) / current_close
+    distance_to_sup = abs(current_close - msnr_support) / current_close
+
+    if distance_to_res <= 0.008:
+        msnr_status = "Testing MSNR Resistance (Supply Reaction 🔴)"
+        msnr_zone_type = "Supply"
+    elif distance_to_sup <= 0.008:
+        msnr_status = "Testing MSNR Support (Demand Reaction 🟢)"
+        msnr_zone_type = "Demand"
+    elif current_close > equilibrium:
+        msnr_status = "In Upper MSNR Range (Bullish Control)"
+        msnr_zone_type = "Neutral-High"
     else:
-        msnr_status = "Midway in MSNR Range ⚖️"
+        msnr_status = "In Lower MSNR Range (Bearish Control)"
+        msnr_zone_type = "Neutral-Low"
 
     return {
         "price": current_close,
@@ -180,7 +187,8 @@ def calculate_advanced_indicators(df):
         "volume_spike": high_volume_spike,
         "msnr_support": msnr_support,
         "msnr_resistance": msnr_resistance,
-        "msnr_status": msnr_status
+        "msnr_status": msnr_status,
+        "msnr_zone_type": msnr_zone_type
     }
 
 # Sidebar with Coins List
@@ -195,46 +203,48 @@ with st.sidebar:
 df = get_coingecko_market_data(coin_id)
 
 if df is not None and not df.empty:
-    ind = calculate_advanced_indicators(df)
+    ind = calculate_realtime_confluence_indicators(df)
     price = ind["price"]
     change = ((price - df['open'].iloc[0]) / df['open'].iloc[0]) * 100
     
-    # --- Accurate Scoring Logic ---
+    # --- Advanced Real-time Confluence Scoring Engine ---
     score = 0
     
-    # Trend Filter (EMA)
+    # 1. Trend Filter (EMA Confluence)
     if ind["ema9"] > ind["ema21"] > ind["ema50"]: score += 2
     elif ind["ema9"] < ind["ema21"] < ind["ema50"]: score -= 2
     
-    # RSI Filter
-    if 45 <= ind["rsi"] <= 65:
+    # 2. RSI Momentum Filter
+    if ind["rsi"] < 35: score += 2  # Oversold Bounce Potential
+    elif ind["rsi"] > 65: score -= 2  # Overbought Drop Potential
+    elif 45 <= ind["rsi"] <= 55:
         if ind["ema9"] > ind["ema21"]: score += 1
         else: score -= 1
-    elif ind["rsi"] < 35: score += 2  # Oversold (Potential Buy)
-    elif ind["rsi"] > 65: score -= 2  # Overbought (Potential Sell)
 
-    # MACD Histogram Momentum
+    # 3. MACD Histogram Trend Momentum
     if ind["macd_hist"] > 0: score += 1
     else: score -= 1
 
-    # Volume Confirmation
-    if ind["volume_spike"]:
-        if score > 0: score += 1
-        elif score < 0: score -= 1
-
-    # Zone Weighting & MSNR Integration
+    # 4. Real-time MSNR & Premium/Discount Confluence
+    if ind["msnr_zone_type"] == "Demand":
+        score += 3  price reacting precisely at MSNR Support!
+    elif ind["msnr_zone_type"] == "Supply":
+        score -= 3  price reacting precisely at MSNR Resistance!
+    
     if "Discount" in ind["zone"] and score > 0: score += 1
     elif "Premium" in ind["zone"] and score < 0: score -= 1
-    
-    if "Demand Zone" in ind["msnr_status"]: score += 2
-    elif "Supply Zone" in ind["msnr_status"]: score -= 2
 
-    # Final Signal Determination
-    if score >= 4:
+    # 5. Volume Spike Confirmation Booster
+    if ind["volume_spike"]:
+        if score > 0: score += 2
+        elif score < 0: score -= 2
+
+    # Final Signal Determination based on Confluence Score
+    if score >= 5:
         signal, sig_color = "STRONG BUY 🚀", "#10B981"
     elif score >= 2:
         signal, sig_color = "BUY 📈", "#34D399"
-    elif score <= -4:
+    elif score <= -5:
         signal, sig_color = "STRONG SELL 🔻", "#EF4444"
     elif score <= -2:
         signal, sig_color = "SELL 📉", "#F87171"
@@ -246,13 +256,13 @@ else:
     st.error("දත්ත ලබා ගැනීම අසාර්ථක විය. කරුණාකර මොහොතަކින් උත්සාහ කරන්න.")
     st.stop()
 
-st.markdown('<p class="vip-header">👑 Binance Signal App VIP <span class="vip-badge">210+ Coins Pro</span></p>', unsafe_allow_html=True)
-st.markdown(f'<p class="sub-desc">Real-time automated technical signals and targets for <b>{sel}</b>.</p>', unsafe_allow_html=True)
+st.markdown('<p class="vip-header">👑 Binance Signal App VIP <span class="vip-badge">Real-time MSNR Pro</span></p>', unsafe_allow_html=True)
+st.markdown(f'<p class="sub-desc">Real-time market confluence analysis and precision targets for <b>{sel}</b>.</p>', unsafe_allow_html=True)
 
 if page == "Live Signal":
     col1, col2 = st.columns([3, 1])
     with col1:
-        st.markdown(f"**Price:** ${price:,.4f} | **Change:** <span style='color: {'#059669' if change >= 0 else '#DC2626'};'>{change:,.2f}%</span> | **MSNR:** <b>{ind['msnr_status']}</b>", unsafe_allow_html=True)
+        st.markdown(f"**Price:** ${price:,.4f} | **Change:** <span style='color: {'#059669' if change >= 0 else '#DC2626'};'>{change:,.2f}%</span> | **MSNR State:** <b>{ind['msnr_status']}</b>", unsafe_allow_html=True)
     with col2:
         st.markdown(f'<div class="signal-box" style="background: {sig_color};">{signal}</div>', unsafe_allow_html=True)
 
@@ -305,17 +315,17 @@ if page == "Live Signal":
     st.components.v1.html(chart_html, height=460)
 
 elif page == "Advanced Analytics":
-    st.markdown("### 📊 උසස් වෙළඳ විශ්ලේෂණය (Advanced Metrics)", unsafe_allow_html=True)
+    st.markdown("### 📊 Real-time Confluence & MSNR Metrics", unsafe_allow_html=True)
     col1, col2 = st.columns(2)
     with col1:
-        st.metric(label="MSNR Status", value=ind['msnr_status'])
+        st.metric(label="Real-time MSNR Status", value=ind['msnr_status'])
         st.metric(label="MSNR Support (Demand)", value=f"${ind['msnr_support']:,.4f}")
         st.metric(label="MSNR Resistance (Supply)", value=f"${ind['msnr_resistance']:,.4f}")
-        st.metric(label="RSI (14)", value=f"{ind['rsi']:.2f}")
+        st.metric(label="RSI (14) Momentum", value=f"{ind['rsi']:.2f}")
     with col2:
         st.metric(label="Market Zone", value=ind['zone'])
         st.metric(label="MACD Histogram", value=f"{ind['macd_hist']:.4f}")
-        st.metric(label="Volume Spike Status", value="Active 🚀" if ind['volume_spike'] else "Normal ⚖️")
+        st.metric(label="Volume Spike Status", value="Active Spike 🚀" if ind['volume_spike'] else "Normal Volume ⚖️")
         st.metric(label="ATR Volatility (SL Guide)", value=f"${ind['atr']:.4f}")
 
 elif page == "Notepad":
