@@ -2,7 +2,6 @@ import streamlit as st
 import streamlit.components.v1 as components
 import requests
 import pandas as pd
-import pandas_ta as ta
 
 # Page Configuration
 st.set_page_config(
@@ -37,7 +36,6 @@ def get_binance_usdt_pairs():
             return sorted(symbols)
     except Exception:
         pass
-    # Fallback list if API fails
     return [
         "BTC/USDT", "ETH/USDT", "SOL/USDT", "BNB/USDT", "XRP/USDT",
         "APT/USDT", "ADA/USDT", "DOGE/USDT", "PEPE/USDT", "AVAX/USDT",
@@ -102,7 +100,7 @@ st.markdown("""
     </div>
     <p style="color: #848E9C; margin: 6px 0 0 0; font-size: 13px; font-weight: 500;">210+ Crypto Pairs Live Analysis</p>
     <div style="margin-top: 10px;">
-        <span style="background-color: rgba(14, 203, 129, 0.2); color: #0ECB81; padding: 4px 12px; border-radius: 20px; font-size: 11px; font-weight: bold; border: 1px solid #0ECB81;">● ALL PAIRS SYNCED</span>
+        <span style="background-color: rgba(14, 203, 129, 0.2); color: #0ECB81; padding: 4px 12px; border-radius: 20px; font-size: 11px; font-weight: bold; border: 1px solid #0ECB81;">● BUILT-IN INDICATOR ENGINE</span>
     </div>
 </div>
 """, unsafe_allow_html=True)
@@ -132,16 +130,24 @@ with tab1:
     current_price, price_change_pct, high_price, low_price = fetch_live_market_data(tv_symbol)
     df_candles = fetch_binance_klines(tv_symbol, interval=f"{st.session_state['timeframe']}m" if st.session_state['timeframe'].isdigit() else "1d")
 
-    # Indicator Calculations (RSI & EMA Crossover)
+    # Indicator Calculations (Manual Pandas RSI & EMA Crossover)
     if df_candles is not None and len(df_candles) > 30:
-        df_candles['RSI'] = ta.rsi(df_candles['close'], length=14)
-        df_candles['EMA_9'] = ta.ema(df_candles['close'], length=9)
-        df_candles['EMA_21'] = ta.ema(df_candles['close'], length=21)
+        delta = df_candles['close'].diff()
+        gain = (delta.where(delta > 0, 0)).rolling(window=14).mean()
+        loss = (-delta.where(delta < 0, 0)).rolling(window=14).mean()
+        rs = gain / loss
+        df_candles['RSI'] = 100 - (100 / (1 + rs))
+        
+        df_candles['EMA_9'] = df_candles['close'].ewm(span=9, adjust=False).mean()
+        df_candles['EMA_21'] = df_candles['close'].ewm(span=21, adjust=False).mean()
         
         last_rsi = df_candles['RSI'].iloc[-1]
         ema_9 = df_candles['EMA_9'].iloc[-1]
         ema_21 = df_candles['EMA_21'].iloc[-1]
         
+        if pd.isna(last_rsi):
+            last_rsi = 50.0
+
         # Indicator Based Rules
         if ema_9 > ema_21 and last_rsi < 70:
             signal_badge, signal_bg = "STRONG BUY 🚀", "#0ECB81"
