@@ -58,7 +58,7 @@ def fetch_live_market_data(symbol):
 
 
 # ---------------------------------------------------------
-# MAIN APP HEADER BANNER (App එකට එද්දිම උඩින්ම වැටෙන කොටස)
+# MAIN APP HEADER BANNER
 # ---------------------------------------------------------
 st.markdown("""
 <div style="background: linear-gradient(135deg, #1E2329 0%, #0B0E11 100%); padding: 20px; border-radius: 16px; border: 1px solid #F0B90B; margin-bottom: 20px; text-align: center; box-shadow: 0px 4px 15px rgba(240, 185, 11, 0.15);">
@@ -166,9 +166,9 @@ with tab1:
             tp_l1, tp_l2, sl_l = f"TP 1 (-{st.session_state['tp1_pct']}%)", f"TP 2 (-{st.session_state['tp2_pct']}%)", f"SL (+{st.session_state['sl_pct']}%)"
     else:
         tp1 = tp2 = sl = 0.0
-        tp_l1 = tp_l2 = sl_l = "-"
+        tp_l1 = tp_l2, sl_l = "TP 1", "TP 2", "SL"
 
-    # Professional Signal Card Container (Grid එකකට සකසා ඇත)
+    # Professional Signal Card Container (සමස්ත දත්තයන් සිරස් අතට පේළි ලෙස සකසා ඇත)
     signal_card_html = f"""
 <div style="background: #181A20; padding: 22px; border-radius: 14px; border: 1px solid #2B313A; color: white;">
 <div style="display: flex; justify-content: space-between; align-items: center;">
@@ -184,53 +184,32 @@ with tab1:
 </div>
 </div>
 <hr style="border: 0.5px solid #2B313A; margin: 18px 0;">
-<div style="display: grid; grid-template-columns: repeat(2, 1fr); gap: 14px; text-align: center;">
-<div style="background: #1E2329; padding: 10px; border-radius: 8px;">
-<span style="color: #848E9C; font-size: 11px; display: block;">ENTRY PRICE</span>
-<h3 style="margin: 4px 0 0 0; color: #F0B90B; font-size: 16px; font-weight: 700;">${current_price:,.4f}</h3>
+
+<div style="text-align: center; margin-bottom: 15px;">
+<span style="color: #848E9C; font-size: 12px; font-weight: 600;">Price: ${current_price:,.4f} | Change: {price_change_pct:+.2f}% | Zone: Premium Zone</span>
 </div>
-<div style="background: #1E2329; padding: 10px; border-radius: 8px;">
-<span style="color: #848E9C; font-size: 11px; display: block;">24H CHANGE</span>
-<h3 style="margin: 4px 0 0 0; color: {trend_color}; font-size: 16px; font-weight: 700;">{price_change_pct:+.2f}%</h3>
+
+<!-- Vertical Stacked Cards as requested -->
+<div style="background: #1E2329; padding: 12px; border-radius: 10px; text-align: center; margin-bottom: 10px;">
+<span style="color: #848E9C; font-size: 11px; font-weight: 700; display: block;">Entry</span>
+<h3 style="margin: 4px 0 0 0; color: #FFFFFF; font-size: 16px; font-weight: 700;">${current_price:,.4f}</h3>
 </div>
-<div style="background: #1E2329; padding: 10px; border-radius: 8px;">
-<span style="color: #848E9C; font-size: 11px; display: block;">24H HIGH</span>
-<h3 style="margin: 4px 0 0 0; color: #FFFFFF; font-size: 16px; font-weight: 700;">${high_price:,.4f}</h3>
+
+<div style="background: #1E2329; padding: 12px; border-radius: 10px; text-align: center; margin-bottom: 10px;">
+<span style="color: #0ECB81; font-size: 11px; font-weight: 700; display: block;">TP 1</span>
+<h3 style="margin: 4px 0 0 0; color: #0ECB81; font-size: 16px; font-weight: 700;">${tp1:,.4f}</h3>
 </div>
-<div style="background: #1E2329; padding: 10px; border-radius: 8px;">
-<span style="color: #848E9C; font-size: 11px; display: block;">24H LOW</span>
-<h3 style="margin: 4px 0 0 0; color: #FFFFFF; font-size: 16px; font-weight: 700;">${low_price:,.4f}</h3>
+
+<div style="background: #1E2329; padding: 12px; border-radius: 10px; text-align: center; margin-bottom: 10px;">
+<span style="color: #0ECB81; font-size: 11px; font-weight: 700; display: block;">TP 2</span>
+<h3 style="margin: 4px 0 0 0; color: #0ECB81; font-size: 16px; font-weight: 700;">${tp2:,.4f}</h3>
 </div>
+
+<div style="background: #1E2329; padding: 12px; border-radius: 10px; text-align: center;">
+<span style="color: #F6465D; font-size: 11px; font-weight: 700; display: block;">SL</span>
+<h3 style="margin: 4px 0 0 0; color: #F6465D; font-size: 16px; font-weight: 700;">${sl:,.4f}</h3>
 </div>
-<hr style="border: 0.5px solid #2B313A; margin: 18px 0;">
-<div style="background: rgba(240, 185, 11, 0.08); border: 1px solid #F0B90B; padding: 10px 14px; border-radius: 10px; margin-bottom: 15px; display: flex; justify-content: space-around; text-align: center;">
-<div>
-<span style="color: #848E9C; font-size: 10px; font-weight: 700;">ELLIOTT WAVE</span>
-<h4 style="margin: 2px 0 0 0; color: #F0B90B; font-size: 13px;">Wave 3 Impulse Active</h4>
-</div>
-<div>
-<span style="color: #848E9C; font-size: 10px; font-weight: 700;">ORDER FLOW</span>
-<h4 style="margin: 2px 0 0 0; color: #0ECB81; font-size: 13px;">Bullish Imbalance</h4>
-</div>
-<div>
-<span style="color: #848E9C; font-size: 10px; font-weight: 700;">VOLUME</span>
-<h4 style="margin: 2px 0 0 0; color: #26A69A; font-size: 13px;">High Buying Volume</h4>
-</div>
-</div>
-<div style="display: flex; justify-content: space-between; gap: 10px;">
-<div style="background: rgba(14, 203, 129, 0.12); border: 1px solid #0ECB81; padding: 12px; border-radius: 10px; flex: 1; text-align: center;">
-<span style="color: #0ECB81; font-size: 11px; font-weight: 700;">🎯 {tp_l1}</span>
-<h4 style="margin: 4px 0 0 0; color: #FFFFFF; font-size: 15px; font-weight: 700;">${tp1:,.4f}</h4>
-</div>
-<div style="background: rgba(14, 203, 129, 0.12); border: 1px solid #0ECB81; padding: 12px; border-radius: 10px; flex: 1; text-align: center;">
-<span style="color: #0ECB81; font-size: 11px; font-weight: 700;">🎯 {tp_l2}</span>
-<h4 style="margin: 4px 0 0 0; color: #FFFFFF; font-size: 15px; font-weight: 700;">${tp2:,.4f}</h4>
-</div>
-<div style="background: rgba(246, 70, 93, 0.12); border: 1px solid #F6465D; padding: 12px; border-radius: 10px; flex: 1; text-align: center;">
-<span style="color: #F6465D; font-size: 11px; font-weight: 700;">🛡️ {sl_l}</span>
-<h4 style="margin: 4px 0 0 0; color: #FFFFFF; font-size: 15px; font-weight: 700;">${sl:,.4f}</h4>
-</div>
-</div>
+
 </div>
 """
     st.markdown(signal_card_html, unsafe_allow_html=True)
@@ -243,7 +222,7 @@ with tab1:
   <div class="tradingview-widget-container__widget"></div>
   <script type="text/javascript" src="https://s3.tradingview.com/external-embedding/embed-widget-technical-analysis.js" async>
   {{
-  "interval": "{st.session_state['timeframe']}m" if "{st.session_state['timeframe']}".isdigit() else "1D",
+  "interval": "{st.session_state['timeframe']}" if "{st.session_state['timeframe']}".isdigit() else "1D",
   "width": "100%",
   "isTransparent": false,
   "height": 430,
