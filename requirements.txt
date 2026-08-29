@@ -1,4 +1,4 @@
 streamlit
 requests
 pandas
-numpy
+pandas-ta
