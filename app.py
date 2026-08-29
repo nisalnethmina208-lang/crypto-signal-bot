@@ -1,338 +1,252 @@
 import streamlit as st
+import streamlit.components.v1 as components
 import requests
-import pandas as pd
-import numpy as np
 
-st.set_page_config(page_title="Binance Signal App VIP - Real-time MSNR Pro", page_icon="👑", layout="wide")
+# Page Configuration (Browser Tab එකේ නම සහ Icon එක)
+st.set_page_config(
+    page_title="Binance Pro Signal Center", 
+    page_icon="⚡", 
+    layout="centered"
+)
 
-# --- Password Protection Function ---
-def check_password():
-    def password_entered():
-        if st.session_state["password"] == "1234Binance@":
-            st.session_state["password_correct"] = True
-            del st.session_state["password"]
-        else:
-            st.session_state["password_correct"] = False
+# Initialize Session State
+if "tp1_pct" not in st.session_state:
+    st.session_state["tp1_pct"] = 2.0
+if "tp2_pct" not in st.session_state:
+    st.session_state["tp2_pct"] = 4.0
+if "sl_pct" not in st.session_state:
+    st.session_state["sl_pct"] = 2.0
+if "timeframe" not in st.session_state:
+    st.session_state["timeframe"] = "15"
 
-    if "password_correct" not in st.session_state:
-        st.markdown("## 👑 VIP App Login")
-        st.text_input("Enter Password", type="password", key="password")
-        st.button("Login", on_click=password_entered)
-        return False
-    elif not st.session_state["password_correct"]:
-        st.markdown("## 👑 VIP App Login")
-        st.text_input("Enter Password", type="password", key="password")
-        st.button("Login", on_click=password_entered)
-        st.error("😕 Incorrect Password")
-        return False
-    else:
-        return True
+# Multi-API Live Data Fetcher
+def fetch_live_market_data(symbol):
+    headers = {"User-Agent": "Mozilla/5.0"}
+    
+    # 1. Binance Global API
+    try:
+        url = f"https://api.binance.com/api/v3/ticker/24hr?symbol={symbol}"
+        res = requests.get(url, headers=headers, timeout=3)
+        if res.status_code == 200:
+            data = res.json()
+            return float(data["lastPrice"]), float(data["priceChangePercent"]), float(data["highPrice"]), float(data["lowPrice"])
+    except Exception:
+        pass
 
-if not check_password():
-    st.stop()
+    # 2. Binance US API
+    try:
+        url = f"https://api.binance.us/api/v3/ticker/24hr?symbol={symbol}"
+        res = requests.get(url, headers=headers, timeout=3)
+        if res.status_code == 200:
+            data = res.json()
+            return float(data["lastPrice"]), float(data["priceChangePercent"]), float(data["highPrice"]), float(data["lowPrice"])
+    except Exception:
+        pass
 
-# Compact & VIP Styled CSS
+    # 3. CryptoCompare API
+    try:
+        coin = symbol.replace("USDT", "")
+        url = f"https://min-api.cryptocompare.com/data/pricemultifull?fsyms={coin}&tsyms=USDT"
+        res = requests.get(url, headers=headers, timeout=3)
+        if res.status_code == 200:
+            d = res.json()["RAW"][coin]["USDT"]
+            return float(d["PRICE"]), float(d["CHANGEPCT24HOUR"]), float(d["HIGH24HOUR"]), float(d["LOW24HOUR"])
+    except Exception:
+        pass
+
+    return 0.0, 0.0, 0.0, 0.0
+
+
+# ---------------------------------------------------------
+# MAIN APP HEADER BANNER (App එකට එද්දිම උඩින්ම වැටෙන කොටස)
+# ---------------------------------------------------------
 st.markdown("""
-    <style>
-    .stApp { background-color: #F8FAFC; color: #0F172A; }
-    .vip-header { font-size: 26px; font-weight: 900; color: #1E293B; margin-bottom: 2px; letter-spacing: -0.5px; }
-    .vip-badge { background: linear-gradient(135deg, #F59E0B 0%, #D97706 100%); color: white; padding: 2px 8px; font-size: 10px; font-weight: 800; border-radius: 4px; text-transform: uppercase; vertical-align: middle; margin-left: 8px; }
-    .sub-desc { color: #64748B; font-size: 13px; margin-bottom: 20px; }
-    .signal-box { color: white; padding: 10px; font-size: 16px; font-weight: 700; border-radius: 8px; text-align: center; }
-    .t-card { background: #F1F5F9; padding: 10px; border-radius: 8px; text-align: center; font-size: 13px; font-weight: 600; }
-    </style>
+<div style="background: linear-gradient(135deg, #1E2329 0%, #0B0E11 100%); padding: 20px; border-radius: 16px; border: 1px solid #F0B90B; margin-bottom: 20px; text-align: center; box-shadow: 0px 4px 15px rgba(240, 185, 11, 0.15);">
+    <div style="display: flex; align-items: center; justify-content: center; gap: 10px;">
+        <span style="font-size: 32px;">⚡</span>
+        <h1 style="color: #F0B90B; margin: 0; font-size: 26px; font-weight: 800; letter-spacing: 1px; text-transform: uppercase;">BINANCE PRO SIGNAL CENTER</h1>
+    </div>
+    <p style="color: #848E9C; margin: 6px 0 0 0; font-size: 13px; font-weight: 500;">Real-Time Crypto Signals & Technical Analysis Dashboard</p>
+    <div style="margin-top: 10px;">
+        <span style="background-color: rgba(14, 203, 129, 0.2); color: #0ECB81; padding: 4px 12px; border-radius: 20px; font-size: 11px; font-weight: bold; border: 1px solid #0ECB81;">● LIVE API CONNECTED</span>
+    </div>
+</div>
 """, unsafe_allow_html=True)
 
-# Fetch Top 210+ Coins from CoinGecko API
-@st.cache_data(ttl=3600, show_spinner=False)
-def get_top_coins_list():
-    try:
-        url = "https://api.coingecko.com/api/v3/coins/markets?vs_currency=usd&order=market_cap_desc&per_page=210&page=1&sparkline=false"
-        headers = {"User-Agent": "Mozilla/5.0"}
-        res = requests.get(url, headers=headers, timeout=10)
-        if res.status_code == 200:
-            data = res.json()
-            coins_dict = {}
-            for item in data:
-                symbol = item['symbol'].upper() + "/USDT"
-                coin_id = item['id']
-                tv_symbol = f"BINANCE:{item['symbol'].upper()}USDT"
-                coins_dict[symbol] = {"id": coin_id, "sym": tv_symbol}
-            return coins_dict
-    except:
-        pass
-     
-    # Fallback default list if API fails
-    return {
-        "BTC/USDT": {"id": "bitcoin", "sym": "BINANCE:BTCUSDT"},
-        "ETH/USDT": {"id": "ethereum", "sym": "BINANCE:ETHUSDT"},
-        "BNB/USDT": {"id": "binancecoin", "sym": "BINANCE:BNBUSDT"},
-        "SOL/USDT": {"id": "solana", "sym": "BINANCE:SOLUSDT"},
-        "XRP/USDT": {"id": "ripple", "sym": "BINANCE:XRPUSDT"}
-    }
 
-coins = get_top_coins_list()
+# Interface Tabs
+tab1, tab2 = st.tabs(["📊 Live Trading Center", "⚙️ Signal Settings"])
 
-@st.cache_data(ttl=300, show_spinner=False)
-def get_coingecko_market_data(coin_id):
-    try:
-        url = f"https://api.coingecko.com/api/v3/coins/{coin_id}/market_chart?vs_currency=usd&days=14"
-        headers = {"User-Agent": "Mozilla/5.0"}
-        res = requests.get(url, headers=headers, timeout=8)
+with tab1:
+    popular_coins = [
+        "BTC/USDT", "ETH/USDT", "SOL/USDT", "BNB/USDT", "XRP/USDT",
+        "APT/USDT", "ADA/USDT", "DOGE/USDT", "PEPE/USDT", "AVAX/USDT",
+        "LINK/USDT", "DOT/USDT", "NEAR/USDT", "SUI/USDT", "SHIB/USDT"
+    ]
+    
+    col1, col2 = st.columns([2, 1])
+    with col1:
+        selected_pair = st.selectbox("Coin Pair එක තෝරන්න:", popular_coins)
+    with col2:
+        custom_input = st.text_input("Coin එක Search කරන්න:", placeholder="eg: RUNE")
         
-        if res.status_code == 200:
-            data = res.json()
-            if 'prices' in data and len(data['prices']) > 0:
-                prices = [x[1] for x in data['prices']]
-                volumes = [x[1] for x in data['total_volumes']] if 'total_volumes' in data else [100000] * len(prices)
-                
-                df = pd.DataFrame(prices, columns=['close'])
-                df['volume'] = volumes[:len(df)]
-                df['open'] = df['close'].shift(1).fillna(df['close'])
-                df['high'] = df['close'] * 1.006
-                df['low'] = df['close'] * 0.994
-                return df
-        return None
-    except:
-        return None
+    if custom_input.strip():
+        custom_symbol = custom_input.upper().strip().replace("USDT", "")
+        selected_pair = f"{custom_symbol}/USDT"
 
-def calculate_realtime_confluence_indicators(df):
-    close = df['close']
-    high = df['high']
-    low = df['low']
-    open_p = df['open']
-    volume = df['volume']
-    
-    # Moving Averages (EMA 9, 21, 50)
-    ema9 = close.ewm(span=9, adjust=False).mean()
-    ema21 = close.ewm(span=21, adjust=False).mean()
-    ema50 = close.ewm(span=50, adjust=False).mean()
-    
-    # RSI (14)
-    delta = close.diff()
-    gain = (delta.where(delta > 0, 0)).rolling(window=14).mean()
-    loss = (-delta.where(delta < 0, 0)).rolling(window=14).mean()
-    rs = gain / loss
-    rsi = 100 - (100 / (1 + rs))
-    
-    # MACD
-    exp1 = close.ewm(span=12, adjust=False).mean()
-    exp2 = close.ewm(span=26, adjust=False).mean()
-    macd_line = exp1 - exp2
-    signal_line = macd_line.ewm(span=9, adjust=False).mean()
-    macd_hist = macd_line - signal_line
+    tv_symbol = selected_pair.replace("/", "")
 
-    # Bollinger Bands
-    sma20 = close.rolling(window=20).mean()
-    std20 = close.rolling(window=20).std()
-    bb_upper = sma20 + (std20 * 2)
-    bb_lower = sma20 - (std20 * 2)
-    
-    # ATR (Average True Range) for SL / TP
-    tr1 = high - low
-    tr2 = (high - close.shift()).abs()
-    tr3 = (low - close.shift()).abs()
-    atr = pd.concat([tr1, tr2, tr3], axis=1).max(axis=1).rolling(window=14).mean()
+    # Fetch Real-time Market Data
+    current_price, price_change_pct, high_price, low_price = fetch_live_market_data(tv_symbol)
 
-    current_close = close.iloc[-1]
-    
-    # Real-time Volume Spike Analysis
-    avg_volume = volume.rolling(window=14).mean().iloc[-1]
-    current_volume = volume.iloc[-1]
-    high_volume_spike = current_volume > (avg_volume * 1.25)
-
-    # Premium / Discount Zones
-    range_high = high.rolling(window=20).max().iloc[-1]
-    range_low = low.rolling(window=20).min().iloc[-1]
-    equilibrium = (range_high + range_low) / 2
-    zone = "Premium Zone (Sell/Short Area)" if current_close > equilibrium else "Discount Zone (Buy/Long Area)"
-
-    # --- Real-time MSNR (Malaysian Support and Resistance) Confluence Engine ---
-    body_high = pd.concat([open_p, close], axis=1).max(axis=1)
-    body_low = pd.concat([open_p, close], axis=1).min(axis=1)
-    
-    msnr_resistance = body_high.rolling(window=10).max().iloc[-1]
-    msnr_support = body_low.rolling(window=10).min().iloc[-1]
-    
-    # Real-time reaction check with tolerance range
-    distance_to_res = abs(current_close - msnr_resistance) / current_close
-    distance_to_sup = abs(current_close - msnr_support) / current_close
-
-    if distance_to_res <= 0.008:
-        msnr_status = "Testing MSNR Resistance (Supply Reaction 🔴)"
-        msnr_zone_type = "Supply"
-    elif distance_to_sup <= 0.008:
-        msnr_status = "Testing MSNR Support (Demand Reaction 🟢)"
-        msnr_zone_type = "Demand"
-    elif current_close > equilibrium:
-        msnr_status = "In Upper MSNR Range (Bullish Control)"
-        msnr_zone_type = "Neutral-High"
+    # Technical Signal Rules
+    if price_change_pct >= 2.0:
+        signal_badge, signal_bg = "STRONG BUY 🚀", "#0ECB81"
+        trend_text, trend_color = "Bullish Momentum (Strong UP)", "#0ECB81"
+        is_buy = True
+    elif price_change_pct > 0:
+        signal_badge, signal_bg = "BUY 📈", "#26A69A"
+        trend_text, trend_color = "Uptrend Structure (UP)", "#26A69A"
+        is_buy = True
+    elif price_change_pct <= -2.0:
+        signal_badge, signal_bg = "STRONG SELL 🔻", "#F6465D"
+        trend_text, trend_color = "Bearish Pressure (Strong DOWN)", "#F6465D"
+        is_buy = False
     else:
-        msnr_status = "In Lower MSNR Range (Bearish Control)"
-        msnr_zone_type = "Neutral-Low"
+        signal_badge, signal_bg = "SELL 📉", "#E55656"
+        trend_text, trend_color = "Downtrend Structure (DOWN)", "#E55656"
+        is_buy = False
 
-    return {
-        "price": current_close,
-        "ema9": ema9.iloc[-1],
-        "ema21": ema21.iloc[-1],
-        "ema50": ema50.iloc[-1],
-        "rsi": rsi.iloc[-1] if not np.isnan(rsi.iloc[-1]) else 50.0,
-        "macd": macd_line.iloc[-1] if not np.isnan(macd_line.iloc[-1]) else 0.0,
-        "macd_signal": signal_line.iloc[-1] if not np.isnan(signal_line.iloc[-1]) else 0.0,
-        "macd_hist": macd_hist.iloc[-1] if not np.isnan(macd_hist.iloc[-1]) else 0.0,
-        "bb_upper": bb_upper.iloc[-1] if not np.isnan(bb_upper.iloc[-1]) else current_close * 1.02,
-        "bb_lower": bb_lower.iloc[-1] if not np.isnan(bb_lower.iloc[-1]) else current_close * 0.98,
-        "atr": atr.iloc[-1] if not np.isnan(atr.iloc[-1]) else current_close * 0.01,
-        "zone": zone,
-        "volume_spike": high_volume_spike,
-        "msnr_support": msnr_support,
-        "msnr_resistance": msnr_resistance,
-        "msnr_status": msnr_status,
-        "msnr_zone_type": msnr_zone_type
-    }
+    # Targets Calculation
+    tp1_ratio = st.session_state["tp1_pct"] / 100.0
+    tp2_ratio = st.session_state["tp2_pct"] / 100.0
+    sl_ratio = st.session_state["sl_pct"] / 100.0
 
-# Sidebar with Coins List
-with st.sidebar:
-    st.markdown("### 👑 VIP Menu (210+ Coins)")
-    page = st.selectbox("Navigation", ["Live Signal", "Advanced Analytics", "Notepad"])
-    
-    sel = st.selectbox("Select Coin Pair", list(coins.keys()))
-    coin_id = coins[sel]["id"]
-    tv_sym = coins[sel]["sym"]
-
-df = get_coingecko_market_data(coin_id)
-
-if df is not None and not df.empty:
-    ind = calculate_realtime_confluence_indicators(df)
-    price = ind["price"]
-    change = ((price - df['open'].iloc[0]) / df['open'].iloc[0]) * 100
-    
-    # --- Advanced Real-time Confluence Scoring Engine ---
-    score = 0
-    
-    # 1. Trend Filter (EMA Confluence)
-    if ind["ema9"] > ind["ema21"] > ind["ema50"]: score += 2
-    elif ind["ema9"] < ind["ema21"] < ind["ema50"]: score -= 2
-    
-    # 2. RSI Momentum Filter
-    if ind["rsi"] < 35: score += 2  # Oversold Bounce Potential
-    elif ind["rsi"] > 65: score -= 2  # Overbought Drop Potential
-    elif 45 <= ind["rsi"] <= 55:
-        if ind["ema9"] > ind["ema21"]: score += 1
-        else: score -= 1
-
-    # 3. MACD Histogram Trend Momentum
-    if ind["macd_hist"] > 0: score += 1
-    else: score -= 1
-
-    # 4. Real-time MSNR & Premium/Discount Confluence
-    if ind["msnr_zone_type"] == "Demand":
-        score += 3  # price reacting precisely at MSNR Support!
-    elif ind["msnr_zone_type"] == "Supply":
-        score -= 3  # price reacting precisely at MSNR Resistance!
-    
-    if "Discount" in ind["zone"] and score > 0: score += 1
-    elif "Premium" in ind["zone"] and score < 0: score -= 1
-
-    # 5. Volume Spike Confirmation Booster
-    if ind["volume_spike"]:
-        if score > 0: score += 2
-        elif score < 0: score -= 2
-
-    # Final Signal Determination based on Confluence Score
-    if score >= 5:
-        signal, sig_color = "STRONG BUY 🚀", "#10B981"
-    elif score >= 2:
-        signal, sig_color = "BUY 📈", "#34D399"
-    elif score <= -5:
-        signal, sig_color = "STRONG SELL 🔻", "#EF4444"
-    elif score <= -2:
-        signal, sig_color = "SELL 📉", "#F87171"
+    if current_price > 0:
+        if is_buy:
+            tp1, tp2, sl = current_price * (1 + tp1_ratio), current_price * (1 + tp2_ratio), current_price * (1 - sl_ratio)
+            tp_l1, tp_l2, sl_l = f"TP 1 (+{st.session_state['tp1_pct']}%)", f"TP 2 (+{st.session_state['tp2_pct']}%)", f"SL (-{st.session_state['sl_pct']}%)"
+        else:
+            tp1, tp2, sl = current_price * (1 - tp1_ratio), current_price * (1 - tp2_ratio), current_price * (1 + sl_ratio)
+            tp_l1, tp_l2, sl_l = f"TP 1 (-{st.session_state['tp1_pct']}%)", f"TP 2 (-{st.session_state['tp2_pct']}%)", f"SL (+{st.session_state['sl_pct']}%)"
     else:
-        signal, sig_color = "HOLD / NEUTRAL ⚖️", "#F59E0B"
+        tp1 = tp2 = sl = 0.0
+        tp_l1 = tp_l2 = sl_l = "-"
 
-    is_buy = "BUY" in signal
-else:
-    st.error("දත්ත ලබා ගැනීම අසාර්ථක විය. කරුණාකර මොහොතަކින් උත්සාහ කරන්න.")
-    st.stop()
-
-st.markdown('<p class="vip-header">👑 Binance Signal App VIP <span class="vip-badge">Real-time MSNR Pro</span></p>', unsafe_allow_html=True)
-st.markdown(f'<p class="sub-desc">Real-time market confluence analysis and precision targets for <b>{sel}</b>.</p>', unsafe_allow_html=True)
-
-if page == "Live Signal":
-    col1, col2 = st.columns([3, 1])
-    with col1:
-        st.markdown(f"**Price:** ${price:,.4f} | **Change:** <span style='color: {'#059669' if change >= 0 else '#DC2626'};'>{change:,.2f}%</span> | **MSNR State:** <b>{ind['msnr_status']}</b>", unsafe_allow_html=True)
-    with col2:
-        st.markdown(f'<div class="signal-box" style="background: {sig_color};">{signal}</div>', unsafe_allow_html=True)
-
-    # Risk-Reward ATR Based Targets
-    if is_buy:
-        tp1 = price + (ind['atr'] * 1.5)
-        tp2 = price + (ind['atr'] * 3.0)
-        sl = price - (ind['atr'] * 1.2)
-    else:
-        tp1 = price - (ind['atr'] * 1.5)
-        tp2 = price - (ind['atr'] * 3.0)
-        sl = price + (ind['atr'] * 1.2)
-
+    # Professional Signal Card Container
+    signal_card_html = f"""
+<div style="background: #181A20; padding: 22px; border-radius: 14px; border: 1px solid #2B313A; color: white;">
+<div style="display: flex; justify-content: space-between; align-items: center;">
+<div>
+<span style="color: #848E9C; font-size: 12px; font-weight: 600;">BINANCE SPOT</span>
+<h2 style="margin: 2px 0 0 0; color: #F0B90B; font-size: 30px; font-weight: 800;">{selected_pair}</h2>
+<p style="margin: 4px 0 0 0; color: {trend_color}; font-weight: 600; font-size: 13px;">● {trend_text}</p>
+</div>
+<div>
+<div style="background: {signal_bg}; color: white; padding: 12px 22px; border-radius: 10px; font-weight: 800; font-size: 18px; text-align: center; letter-spacing: 0.5px;">
+{signal_badge}
+</div>
+</div>
+</div>
+<hr style="border: 0.5px solid #2B313A; margin: 18px 0;">
+<div style="display: flex; justify-content: space-between; text-align: center;">
+<div>
+<span style="color: #848E9C; font-size: 11px;">LIVE PRICE</span>
+<h3 style="margin: 4px 0 0 0; font-size: 18px; font-weight: 700;">${current_price:,.4f}</h3>
+</div>
+<div>
+<span style="color: #848E9C; font-size: 11px;">24H CHANGE</span>
+<h3 style="margin: 4px 0 0 0; color: {trend_color}; font-size: 18px; font-weight: 700;">{price_change_pct:+.2f}%</h3>
+</div>
+<div>
+<span style="color: #848E9C; font-size: 11px;">24H HIGH</span>
+<h3 style="margin: 4px 0 0 0; font-size: 18px; font-weight: 700;">${high_price:,.4f}</h3>
+</div>
+<div>
+<span style="color: #848E9C; font-size: 11px;">24H LOW</span>
+<h3 style="margin: 4px 0 0 0; font-size: 18px; font-weight: 700;">${low_price:,.4f}</h3>
+</div>
+</div>
+<hr style="border: 0.5px solid #2B313A; margin: 18px 0;">
+<div style="display: flex; justify-content: space-between; gap: 10px;">
+<div style="background: rgba(14, 203, 129, 0.12); border: 1px solid #0ECB81; padding: 12px; border-radius: 10px; flex: 1; text-align: center;">
+<span style="color: #0ECB81; font-size: 11px; font-weight: 700;">🎯 {tp_l1}</span>
+<h4 style="margin: 4px 0 0 0; color: #FFFFFF; font-size: 16px; font-weight: 700;">${tp1:,.4f}</h4>
+</div>
+<div style="background: rgba(14, 203, 129, 0.12); border: 1px solid #0ECB81; padding: 12px; border-radius: 10px; flex: 1; text-align: center;">
+<span style="color: #0ECB81; font-size: 11px; font-weight: 700;">🎯 {tp_l2}</span>
+<h4 style="margin: 4px 0 0 0; color: #FFFFFF; font-size: 16px; font-weight: 700;">${tp2:,.4f}</h4>
+</div>
+<div style="background: rgba(246, 70, 93, 0.12); border: 1px solid #F6465D; padding: 12px; border-radius: 10px; flex: 1; text-align: center;">
+<span style="color: #F6465D; font-size: 11px; font-weight: 700;">🛡️ {sl_l}</span>
+<h4 style="margin: 4px 0 0 0; color: #FFFFFF; font-size: 16px; font-weight: 700;">${sl:,.4f}</h4>
+</div>
+</div>
+</div>
+"""
+    st.markdown(signal_card_html, unsafe_allow_html=True)
     st.markdown("<br>", unsafe_allow_html=True)
-    c1, c2, c3, c4 = st.columns(4)
-    c1.markdown(f'<div class="t-card">Entry<br><b>${price:,.4f}</b></div>', unsafe_allow_html=True)
-    c2.markdown(f'<div class="t-card">TP 1<br><b style="color: #059669;">${tp1:,.4f}</b></div>', unsafe_allow_html=True)
-    c3.markdown(f'<div class="t-card">TP 2<br><b style="color: #059669;">${tp2:,.4f}</b></div>', unsafe_allow_html=True)
-    c4.markdown(f'<div class="t-card">SL<br><b style="color: #DC2626;">${sl:,.4f}</b></div>', unsafe_allow_html=True)
 
-    st.markdown("<br>", unsafe_allow_html=True)
+    # TradingView Pro Technical Analysis Meter Widget
+    st.markdown("### 📊 Live Technical Analysis Meter")
+    ta_widget_code = f"""
+<div class="tradingview-widget-container">
+  <div class="tradingview-widget-container__widget"></div>
+  <script type="text/javascript" src="https://s3.tradingview.com/external-embedding/embed-widget-technical-analysis.js" async>
+  {{
+  "interval": "{st.session_state['timeframe']}m" if "{st.session_state['timeframe']}".isdigit() else "1D",
+  "width": "100%",
+  "isTransparent": false,
+  "height": 430,
+  "symbol": "BINANCE:{tv_symbol}",
+  "showIntervalTabs": true,
+  "locale": "en",
+  "colorTheme": "dark"
+}}
+  </script>
+</div>
+"""
+    components.html(ta_widget_code, height=440)
+
+    # TradingView Chart Widget
+    st.markdown("### 📈 Live Interactive Chart")
+    selected_tf = st.session_state["timeframe"]
+    chart_code = f"""
+<div class="tradingview-widget-container" style="height:100%;width:100%">
+<div id="tradingview_chart" style="height:480px;width:100%"></div>
+<script type="text/javascript" src="https://s3.tradingview.com/tv.js"></script>
+<script type="text/javascript">
+new TradingView.widget({{
+"autosize": true,
+"symbol": "BINANCE:{tv_symbol}",
+"interval": "{selected_tf}",
+"timezone": "Etc/UTC",
+"theme": "dark",
+"style": "1",
+"locale": "en",
+"toolbar_bg": "#f1f3f6",
+"enable_publishing": false,
+"allow_symbol_change": true,
+"container_id": "tradingview_chart"
+}});
+</script>
+</div>
+"""
+    components.html(chart_code, height=500)
+
+with tab2:
+    st.subheader("⚙️ Signal Configuration Controls")
     
-    # TradingView Chart
-    chart_html = f"""
-    <div class="tradingview-widget-container" style="height:450px;width:100%">
-      <div id="tv_chart" style="height:100%;width:100%"></div>
-      <script type="text/javascript" src="https://s3.tradingview.com/tv.js"></script>
-      <script type="text/javascript">
-      new TradingView.widget({{
-        "autosize": true,
-        "symbol": "{tv_sym}",
-        "interval": "60",
-        "timezone": "Etc/UTC",
-        "theme": "light",
-        "style": "1",
-        "locale": "en",
-        "toolbar_bg": "#f1f3f6",
-        "enable_publishing": false,
-        "allow_symbol_change": true,
-        "studies": [
-          "RSI@tv-basicstudies",
-          "MACD@tv-basicstudies",
-          "BollingerBands@tv-basicstudies"
-        ],
-        "container_id": "tv_chart"
-      }});
-      </script>
-    </div>
-    """
-    st.components.v1.html(chart_html, height=460)
+    col_s1, col_s2, col_s3 = st.columns(3)
+    with col_s1:
+        st.session_state["tp1_pct"] = st.number_input("TP 1 (%)", 0.5, 20.0, st.session_state["tp1_pct"], 0.5)
+    with col_s2:
+        st.session_state["tp2_pct"] = st.number_input("TP 2 (%)", 1.0, 30.0, st.session_state["tp2_pct"], 0.5)
+    with col_s3:
+        st.session_state["sl_pct"] = st.number_input("Stop Loss (%)", 0.5, 15.0, st.session_state["sl_pct"], 0.5)
 
-elif page == "Advanced Analytics":
-    st.markdown("### 📊 Real-time Confluence & MSNR Metrics", unsafe_allow_html=True)
-    col1, col2 = st.columns(2)
-    with col1:
-        st.metric(label="Real-time MSNR Status", value=ind['msnr_status'])
-        st.metric(label="MSNR Support (Demand)", value=f"${ind['msnr_support']:,.4f}")
-        st.metric(label="MSNR Resistance (Supply)", value=f"${ind['msnr_resistance']:,.4f}")
-        st.metric(label="RSI (14) Momentum", value=f"{ind['rsi']:.2f}")
-    with col2:
-        st.metric(label="Market Zone", value=ind['zone'])
-        st.metric(label="MACD Histogram", value=f"{ind['macd_hist']:.4f}")
-        st.metric(label="Volume Spike Status", value="Active Spike 🚀" if ind['volume_spike'] else "Normal Volume ⚖️")
-        st.metric(label="ATR Volatility (SL Guide)", value=f"${ind['atr']:.4f}")
-
-elif page == "Notepad":
-    st.markdown('### 📝 VIP Trading Notepad', unsafe_allow_html=True)
-    if 'note' not in st.session_state: 
-        st.session_state.note = ""
-    st.session_state.note = st.text_area("Note", value=st.session_state.note, height=200, label_visibility="collapsed")
-    if st.button("Clear Notes"): 
-        st.session_state.note = ""
-        st.rerun()
+    st.markdown("---")
+    tf_options = {"1 Min": "1", "5 Min": "5", "15 Min": "15", "1 Hour": "60", "4 Hour": "240", "1 Day": "D"}
+    current_tf_label = [k for k, v in tf_options.items() if v == st.session_state["timeframe"]][0]
+    selected_tf_label = st.selectbox("Default Timeframe:", list(tf_options.keys()), index=list(tf_options.keys()).index(current_tf_label))
+    st.session_state["timeframe"] = tf_options[selected_tf_label]
