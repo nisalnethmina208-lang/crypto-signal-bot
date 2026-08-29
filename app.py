@@ -168,45 +168,41 @@ with tab1:
         tp1 = tp2 = sl = 0.0
         tp_l1 = tp_l2 = sl_l = "-"
 
-    # Compact Vertical Boxes (පොඩියට සාදා ඇත)
+    # Ultra-Compact Minimalist Signal Card
     signal_card_html = f"""
-<div style="background: #181A20; padding: 18px; border-radius: 14px; border: 1px solid #2B313A; color: white;">
+<div style="background: #181A20; padding: 14px; border-radius: 12px; border: 1px solid #2B313A; color: white;">
 <div style="display: flex; justify-content: space-between; align-items: center;">
 <div>
-<span style="color: #848E9C; font-size: 11px; font-weight: 600;">BINANCE SPOT</span>
-<h2 style="margin: 2px 0 0 0; color: #F0B90B; font-size: 26px; font-weight: 800;">{selected_pair}</h2>
-<p style="margin: 2px 0 0 0; color: {trend_color}; font-weight: 600; font-size: 12px;">● {trend_text}</p>
+<span style="color: #848E9C; font-size: 10px; font-weight: 600;">BINANCE SPOT</span>
+<h2 style="margin: 1px 0 0 0; color: #F0B90B; font-size: 22px; font-weight: 800;">{selected_pair}</h2>
+<p style="margin: 1px 0 0 0; color: {trend_color}; font-weight: 600; font-size: 11px;">● {trend_text}</p>
 </div>
 <div>
-<div style="background: {signal_bg}; color: white; padding: 10px 18px; border-radius: 8px; font-weight: 800; font-size: 16px; text-align: center;">
+<div style="background: {signal_bg}; color: white; padding: 8px 14px; border-radius: 6px; font-weight: 800; font-size: 14px; text-align: center;">
 {signal_badge}
 </div>
 </div>
 </div>
 
-<div style="text-align: center; margin: 12px 0;">
-<span style="color: #848E9C; font-size: 11px; font-weight: 600;">Price: ${current_price:,.4f} | Change: {price_change_pct:+.2f}% | Zone: Premium Zone</span>
+<div style="text-align: center; margin: 8px 0;">
+<span style="color: #848E9C; font-size: 10px; font-weight: 600;">Price: ${current_price:,.4f} | Change: {price_change_pct:+.2f}% | Zone: Premium Zone</span>
 </div>
 
-<!-- Compact Vertical Boxes -->
-<div style="background: #1E2329; padding: 6px 10px; border-radius: 6px; text-align: center; margin-bottom: 6px;">
-<span style="color: #848E9C; font-size: 10px; font-weight: 600; display: block;">Entry</span>
-<h4 style="margin: 1px 0 0 0; color: #FFFFFF; font-size: 14px; font-weight: 700;">${current_price:,.4f}</h4>
+<!-- Ultra-Compact Minimalist Rows -->
+<div style="background: #1E2329; padding: 4px 8px; border-radius: 4px; text-align: center; margin-bottom: 4px;">
+<span style="color: #848E9C; font-size: 9px; font-weight: 600;">Entry:</span> <span style="color: #FFFFFF; font-size: 12px; font-weight: 700;">${current_price:,.4f}</span>
 </div>
 
-<div style="background: #1E2329; padding: 6px 10px; border-radius: 6px; text-align: center; margin-bottom: 6px;">
-<span style="color: #0ECB81; font-size: 10px; font-weight: 600; display: block;">TP 1</span>
-<h4 style="margin: 1px 0 0 0; color: #0ECB81; font-size: 14px; font-weight: 700;">${tp1:,.4f}</h4>
+<div style="background: #1E2329; padding: 4px 8px; border-radius: 4px; text-align: center; margin-bottom: 4px;">
+<span style="color: #0ECB81; font-size: 9px; font-weight: 600;">TP 1:</span> <span style="color: #0ECB81; font-size: 12px; font-weight: 700;">${tp1:,.4f}</span>
 </div>
 
-<div style="background: #1E2329; padding: 6px 10px; border-radius: 6px; text-align: center; margin-bottom: 6px;">
-<span style="color: #0ECB81; font-size: 10px; font-weight: 600; display: block;">TP 2</span>
-<h4 style="margin: 1px 0 0 0; color: #0ECB81; font-size: 14px; font-weight: 700;">${tp2:,.4f}</h4>
+<div style="background: #1E2329; padding: 4px 8px; border-radius: 4px; text-align: center; margin-bottom: 4px;">
+<span style="color: #0ECB81; font-size: 9px; font-weight: 600;">TP 2:</span> <span style="color: #0ECB81; font-size: 12px; font-weight: 700;">${tp2:,.4f}</span>
 </div>
 
-<div style="background: #1E2329; padding: 6px 10px; border-radius: 6px; text-align: center;">
-<span style="color: #F6465D; font-size: 10px; font-weight: 600; display: block;">SL</span>
-<h4 style="margin: 1px 0 0 0; color: #F6465D; font-size: 14px; font-weight: 700;">${sl:,.4f}</h4>
+<div style="background: #1E2329; padding: 4px 8px; border-radius: 4px; text-align: center;">
+<span style="color: #F6465D; font-size: 9px; font-weight: 600;">SL:</span> <span style="color: #F6465D; font-size: 12px; font-weight: 700;">${sl:,.4f}</span>
 </div>
 
 </div>
