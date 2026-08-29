@@ -168,7 +168,7 @@ with tab1:
         tp1 = tp2 = sl = 0.0
         tp_l1 = tp_l2 = sl_l = "-"
 
-    # Professional Signal Card Container (Entry Price සහ Indicators සමග)
+    # Professional Signal Card Container (Grid එකකට සකසා ඇත)
     signal_card_html = f"""
 <div style="background: #181A20; padding: 22px; border-radius: 14px; border: 1px solid #2B313A; color: white;">
 <div style="display: flex; justify-content: space-between; align-items: center;">
@@ -184,22 +184,22 @@ with tab1:
 </div>
 </div>
 <hr style="border: 0.5px solid #2B313A; margin: 18px 0;">
-<div style="display: flex; justify-content: space-between; text-align: center;">
-<div>
-<span style="color: #848E9C; font-size: 11px;">ENTRY PRICE</span>
-<h3 style="margin: 4px 0 0 0; color: #F0B90B; font-size: 18px; font-weight: 700;">${current_price:,.4f}</h3>
+<div style="display: grid; grid-template-columns: repeat(2, 1fr); gap: 14px; text-align: center;">
+<div style="background: #1E2329; padding: 10px; border-radius: 8px;">
+<span style="color: #848E9C; font-size: 11px; display: block;">ENTRY PRICE</span>
+<h3 style="margin: 4px 0 0 0; color: #F0B90B; font-size: 16px; font-weight: 700;">${current_price:,.4f}</h3>
 </div>
-<div>
-<span style="color: #848E9C; font-size: 11px;">24H CHANGE</span>
-<h3 style="margin: 4px 0 0 0; color: {trend_color}; font-size: 18px; font-weight: 700;">{price_change_pct:+.2f}%</h3>
+<div style="background: #1E2329; padding: 10px; border-radius: 8px;">
+<span style="color: #848E9C; font-size: 11px; display: block;">24H CHANGE</span>
+<h3 style="margin: 4px 0 0 0; color: {trend_color}; font-size: 16px; font-weight: 700;">{price_change_pct:+.2f}%</h3>
 </div>
-<div>
-<span style="color: #848E9C; font-size: 11px;">24H HIGH</span>
-<h3 style="margin: 4px 0 0 0; font-size: 18px; font-weight: 700;">${high_price:,.4f}</h3>
+<div style="background: #1E2329; padding: 10px; border-radius: 8px;">
+<span style="color: #848E9C; font-size: 11px; display: block;">24H HIGH</span>
+<h3 style="margin: 4px 0 0 0; color: #FFFFFF; font-size: 16px; font-weight: 700;">${high_price:,.4f}</h3>
 </div>
-<div>
-<span style="color: #848E9C; font-size: 11px;">24H LOW</span>
-<h3 style="margin: 4px 0 0 0; font-size: 18px; font-weight: 700;">${low_price:,.4f}</h3>
+<div style="background: #1E2329; padding: 10px; border-radius: 8px;">
+<span style="color: #848E9C; font-size: 11px; display: block;">24H LOW</span>
+<h3 style="margin: 4px 0 0 0; color: #FFFFFF; font-size: 16px; font-weight: 700;">${low_price:,.4f}</h3>
 </div>
 </div>
 <hr style="border: 0.5px solid #2B313A; margin: 18px 0;">
@@ -220,15 +220,15 @@ with tab1:
 <div style="display: flex; justify-content: space-between; gap: 10px;">
 <div style="background: rgba(14, 203, 129, 0.12); border: 1px solid #0ECB81; padding: 12px; border-radius: 10px; flex: 1; text-align: center;">
 <span style="color: #0ECB81; font-size: 11px; font-weight: 700;">🎯 {tp_l1}</span>
-<h4 style="margin: 4px 0 0 0; color: #FFFFFF; font-size: 16px; font-weight: 700;">${tp1:,.4f}</h4>
+<h4 style="margin: 4px 0 0 0; color: #FFFFFF; font-size: 15px; font-weight: 700;">${tp1:,.4f}</h4>
 </div>
 <div style="background: rgba(14, 203, 129, 0.12); border: 1px solid #0ECB81; padding: 12px; border-radius: 10px; flex: 1; text-align: center;">
 <span style="color: #0ECB81; font-size: 11px; font-weight: 700;">🎯 {tp_l2}</span>
-<h4 style="margin: 4px 0 0 0; color: #FFFFFF; font-size: 16px; font-weight: 700;">${tp2:,.4f}</h4>
+<h4 style="margin: 4px 0 0 0; color: #FFFFFF; font-size: 15px; font-weight: 700;">${tp2:,.4f}</h4>
 </div>
 <div style="background: rgba(246, 70, 93, 0.12); border: 1px solid #F6465D; padding: 12px; border-radius: 10px; flex: 1; text-align: center;">
 <span style="color: #F6465D; font-size: 11px; font-weight: 700;">🛡️ {sl_l}</span>
-<h4 style="margin: 4px 0 0 0; color: #FFFFFF; font-size: 16px; font-weight: 700;">${sl:,.4f}</h4>
+<h4 style="margin: 4px 0 0 0; color: #FFFFFF; font-size: 15px; font-weight: 700;">${sl:,.4f}</h4>
 </div>
 </div>
 </div>
