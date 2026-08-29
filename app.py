@@ -5,7 +5,7 @@ import pandas as pd
 
 # Page Configuration
 st.set_page_config(
-    page_title="Binance Pro Signal Center", 
+    page_title="Binance Pro Signal & Forecast Center", 
     page_icon="⚡", 
     layout="centered"
 )
@@ -24,7 +24,7 @@ if "timeframe" not in st.session_state:
 @st.cache_data(ttl=3600)
 def get_binance_usdt_pairs():
     try:
-        url = "https://api.binance.com/api/v3/exchangeInfo"
+        url = "https://api1.binance.com/api/v3/exchangeInfo"
         res = requests.get(url, timeout=5)
         if res.status_code == 200:
             data = res.json()
@@ -43,48 +43,58 @@ def get_binance_usdt_pairs():
         "LINK/USDT", "DOT/USDT", "NEAR/USDT", "SUI/USDT", "SHIB/USDT"
     ]
 
-# Fetch Historical Candles for Indicator Calculation
+# Fetch Historical Candles for Advanced Indicator Calculation
 def fetch_binance_klines(symbol, interval="15", limit=100):
-    url = f"https://api.binance.com/api/v3/klines?symbol={symbol}&interval={interval}m&limit={limit}"
-    try:
-        res = requests.get(url, timeout=5)
-        if res.status_code == 200:
-            data = res.json()
-            if isinstance(data, list) and len(data) > 0:
-                df = pd.DataFrame(data, columns=[
-                    'timestamp', 'open', 'high', 'low', 'close', 'volume',
-                    'close_time', 'quote_asset_volume', 'number_of_trades',
-                    'taker_buy_base_asset_volume', 'taker_buy_quote_asset_volume', 'ignore'
-                ])
-                df['close'] = df['close'].astype(float)
-                df['high'] = df['high'].astype(float)
-                df['low'] = df['low'].astype(float)
-                df['open'] = df['open'].astype(float)
-                return df
-    except Exception:
-        pass
+    urls = [
+        f"https://api.binance.com/api/v3/klines?symbol={symbol}&interval={interval}m&limit={limit}",
+        f"https://api1.binance.com/api/v3/klines?symbol={symbol}&interval={interval}m&limit={limit}",
+        f"https://api3.binance.com/api/v3/klines?symbol={symbol}&interval={interval}m&limit={limit}"
+    ]
+    for url in urls:
+        try:
+            res = requests.get(url, timeout=4)
+            if res.status_code == 200:
+                data = res.json()
+                if isinstance(data, list) and len(data) > 0:
+                    df = pd.DataFrame(data, columns=[
+                        'timestamp', 'open', 'high', 'low', 'close', 'volume',
+                        'close_time', 'quote_asset_volume', 'number_of_trades',
+                        'taker_buy_base_asset_volume', 'taker_buy_quote_asset_volume', 'ignore'
+                    ])
+                    df['close'] = df['close'].astype(float)
+                    df['high'] = df['high'].astype(float)
+                    df['low'] = df['low'].astype(float)
+                    df['open'] = df['open'].astype(float)
+                    return df
+        except Exception:
+            continue
     return None
 
-# Fetch Live Market Data
+# Fetch Real Live Market Data
 def fetch_live_market_data(symbol):
-    try:
-        url = f"https://api.binance.com/api/v3/ticker/24hr?symbol={symbol}"
-        res = requests.get(url, timeout=3)
-        if res.status_code == 200:
-            data = res.json()
-            return float(data["lastPrice"]), float(data["priceChangePercent"]), float(data["highPrice"]), float(data["lowPrice"])
-    except Exception:
-        pass
-    return 100.0, 1.0, 105.0, 95.0
+    urls = [
+        f"https://api.binance.com/api/v3/ticker/24hr?symbol={symbol}",
+        f"https://api1.binance.com/api/v3/ticker/24hr?symbol={symbol}",
+        f"https://api3.binance.com/api/v3/ticker/24hr?symbol={symbol}"
+    ]
+    for url in urls:
+        try:
+            res = requests.get(url, timeout=3)
+            if res.status_code == 200:
+                data = res.json()
+                return float(data["lastPrice"]), float(data["priceChangePercent"]), float(data["highPrice"]), float(data["lowPrice"])
+        except Exception:
+            continue
+    return 0.0, 0.0, 0.0, 0.0
 
 # UI Header Banner
 st.markdown("""
 <div style="background: linear-gradient(135deg, #1E2329 0%, #0B0E11 100%); padding: 20px; border-radius: 16px; border: 1px solid #F0B90B; margin-bottom: 20px; text-align: center; box-shadow: 0px 4px 15px rgba(240, 185, 11, 0.15);">
     <div style="display: flex; align-items: center; justify-content: center; gap: 10px;">
         <span style="font-size: 32px;">⚡</span>
-        <h1 style="color: #F0B90B; margin: 0; font-size: 24px; font-weight: 800;">BINANCE PRO SIGNAL CENTER</h1>
+        <h1 style="color: #F0B90B; margin: 0; font-size: 24px; font-weight: 800;">BINANCE PRO SIGNAL & FORECAST CENTER</h1>
     </div>
-    <p style="color: #848E9C; margin: 6px 0 0 0; font-size: 13px;">210+ Live Crypto Pairs & Advanced Technical Indicators</p>
+    <p style="color: #848E9C; margin: 6px 0 0 0; font-size: 13px;">210+ Live Crypto Pairs & Predictive Technical Indicators (RSI, EMA, MACD)</p>
 </div>
 """, unsafe_allow_html=True)
 
@@ -111,46 +121,96 @@ with tab1:
     current_price, price_change_pct, high_price, low_price = fetch_live_market_data(tv_symbol)
     df_candles = fetch_binance_klines(tv_symbol, interval=st.session_state['timeframe'], limit=100)
 
-    # Indicator Calculations (RSI & EMA Crossover)
+    # Advanced Indicator Calculations (RSI, EMA 9/21, MACD & Bollinger Bands)
     last_rsi = 50.0
     ema_9 = current_price
     ema_21 = current_price
+    macd_val = 0.0
+    macd_signal = 0.0
+    bb_upper = current_price * 1.02
+    bb_lower = current_price * 0.98
 
-    if df_candles is not None and len(df_candles) > 30:
+    if df_candles is not None and len(df_candles) > 35:
         try:
+            # RSI Calculation
             delta = df_candles['close'].diff()
             gain = (delta.where(delta > 0, 0)).rolling(window=14).mean()
             loss = (-delta.where(delta < 0, 0)).rolling(window=14).mean()
             rs = gain / loss
             df_candles['RSI'] = 100 - (100 / (1 + rs))
             
+            # EMA Calculations
             df_candles['EMA_9'] = df_candles['close'].ewm(span=9, adjust=False).mean()
             df_candles['EMA_21'] = df_candles['close'].ewm(span=21, adjust=False).mean()
             
-            if not pd.isna(df_candles['RSI'].iloc[-1]):
-                last_rsi = float(df_candles['RSI'].iloc[-1])
+            # MACD Calculation for Trend Prediction
+            exp1 = df_candles['close'].ewm(span=12, adjust=False).mean()
+            exp2 = df_candles['close'].ewm(span=26, adjust=False).mean()
+            df_candles['MACD'] = exp1 - exp2
+            df_candles['MACD_Signal'] = df_candles['MACD'].ewm(span=9, adjust=False).mean()
+
+            # Bollinger Bands Calculation
+            df_candles['BB_Mid'] = df_candles['close'].rolling(window=20).mean()
+            bb_std = df_candles['close'].rolling(window=20).std()
+            df_candles['BB_Upper'] = df_candles['BB_Mid'] + (bb_std * 2)
+            df_candles['BB_Lower'] = df_candles['BB_Mid'] - (bb_std * 2)
+
+            last_rsi = float(df_candles['RSI'].iloc[-1])
             ema_9 = float(df_candles['EMA_9'].iloc[-1])
             ema_21 = float(df_candles['EMA_21'].iloc[-1])
+            macd_val = float(df_candles['MACD'].iloc[-1])
+            macd_signal = float(df_candles['MACD_Signal'].iloc[-1])
+            bb_upper = float(df_candles['BB_Upper'].iloc[-1])
+            bb_lower = float(df_candles['BB_Lower'].iloc[-1])
         except Exception:
             pass
 
-    # Signal Generation Rules based on Indicators
-    if ema_9 > ema_21 and last_rsi < 70:
+    # Fallback if live price is 0
+    if current_price == 0.0 and df_candles is not None:
+        current_price = float(df_candles['close'].iloc[-1])
+        high_price = float(df_candles['high'].max())
+        low_price = float(df_candles['low'].min())
+
+    # Predictive Market Movement Logic based on Multi-Indicators
+    forecast_text = "Market is consolidating. Wait for breakout."
+    forecast_color = "#F0B90B"
+    
+    if ema_9 > ema_21 and macd_val > macd_signal and last_rsi < 68:
         signal_badge, signal_bg = "STRONG BUY 🚀", "#0ECB81"
-        trend_text, trend_color = f"EMA Bullish & RSI ({last_rsi:.1f})", "#0ECB81"
+        trend_text = "Bullish Trend Continuation Expected"
+        trend_color = "#0ECB81"
+        forecast_text = "ඉහළට යාමේ ප්‍රබල ප්‍රවණතාවක් පවතී (Bullish Momentum). මිල වැඩිදුරටත් ඉහළ යාමට ඉඩ ඇත."
         is_buy = True
-    elif ema_9 < ema_21 and last_rsi > 30:
+    elif ema_9 < ema_21 and macd_val < macd_signal and last_rsi > 32:
         signal_badge, signal_bg = "STRONG SELL 🔻", "#F6465D"
-        trend_text, trend_color = f"EMA Bearish & RSI ({last_rsi:.1f})", "#F6465D"
+        trend_text = "Bearish Trend Continuation Expected"
+        trend_color = "#F6465D"
+        forecast_text = "පහළට වැටීමේ ප්‍රබල පීඩනයක් ඇත (Bearish Pressure). තවදුරටත් මිල අඩුවිය හැක."
+        is_buy = False
+    elif last_rsi < 30:
+        signal_badge, signal_bg = "REVERSAL BUY 📈", "#0ECB81"
+        trend_text = "Oversold Zone - Potential Upward Reversal"
+        trend_color = "#0ECB81"
+        forecast_text = "කොයින් එක Oversold (අධික ලෙස විකුණා ඇති) මට්ටමක ඇත. ළඟදීම ඉහළට හැරීමේ (Reversal) වැඩි ඉඩක් ඇත."
+        is_buy = True
+    elif last_rsi > 70:
+        signal_badge, signal_bg = "REVERSAL SELL 📉", "#F6465D"
+        trend_text = "Overbought Zone - Potential Downward Reversal"
+        trend_color = "#F6465D"
+        forecast_text = "කොයින් එක Overbought (අධික ලෙස මිලදී ගත්) මට්ටමක ඇත. ළඟදීම පහළට correction එකක් ඒමට ඉඩ ඇත."
         is_buy = False
     else:
-        if price_change_pct >= 0:
+        if ema_9 >= ema_21:
             signal_badge, signal_bg = "BUY 📈", "#26A69A"
-            trend_text, trend_color = f"Neutral Up momentum (RSI: {last_rsi:.1f})", "#26A69A"
+            trend_text = "Short-term Bullish Wave"
+            trend_color = "#26A69A"
+            forecast_text = "කෙටිකාලීන මිල ඉහළ නැගීමක් පෙන්නුම් කරයි."
             is_buy = True
         else:
             signal_badge, signal_bg = "SELL 📉", "#E55656"
-            trend_text, trend_color = f"Neutral Down momentum (RSI: {last_rsi:.1f})", "#E55656"
+            trend_text = "Short-term Bearish Wave"
+            trend_color = "#E55656"
+            forecast_text = "කෙටිකාලීන මිල පහළ යාමේ අවදානමක් ඇත."
             is_buy = False
 
     # Targets Calculation
@@ -169,7 +229,7 @@ with tab1:
         sl = current_price * (1 + sl_ratio)
         tp_l1, tp_l2, sl_l = f"TP 1 (-{st.session_state['tp1_pct']}%)", f"TP 2 (-{st.session_state['tp2_pct']}%)", f"SL (+{st.session_state['sl_pct']}%)"
 
-    # Signal Card UI
+    # Signal Card UI with Forecast Insight
     signal_card_html = f"""
 <div style="background: #181A20; padding: 22px; border-radius: 14px; border: 1px solid #2B313A; color: white;">
     <div style="display: flex; justify-content: space-between; align-items: center;">
@@ -183,22 +243,26 @@ with tab1:
         </div>
     </div>
     <hr style="border: 0.5px solid #2B313A; margin: 18px 0;">
+    <div style="background: rgba(240, 185, 11, 0.08); border-left: 4px solid #F0B90B; padding: 10px 14px; border-radius: 4px; margin-bottom: 18px;">
+        <span style="color: #F0B90B; font-size: 12px; font-weight: 700;">🔮 AI Indicator Market Forecast:</span>
+        <p style="margin: 4px 0 0 0; color: #EAECEE; font-size: 13px;">{forecast_text}</p>
+    </div>
     <div style="display: flex; justify-content: space-between; text-align: center;">
         <div>
             <span style="color: #848E9C; font-size: 11px;">LIVE PRICE</span>
             <h3 style="margin: 4px 0 0 0; font-size: 16px; font-weight: 700;">${current_price:,.4f}</h3>
         </div>
         <div>
-            <span style="color: #848E9C; font-size: 11px;">24H CHANGE</span>
-            <h3 style="margin: 4px 0 0 0; color: {trend_color}; font-size: 16px; font-weight: 700;">{price_change_pct:+.2f}%</h3>
+            <span style="color: #848E9C; font-size: 11px;">RSI (14)</span>
+            <h3 style="margin: 4px 0 0 0; font-size: 16px; font-weight: 700;">{last_rsi:.1f}</h3>
         </div>
         <div>
-            <span style="color: #848E9C; font-size: 11px;">24H HIGH</span>
-            <h3 style="margin: 4px 0 0 0; font-size: 16px; font-weight: 700;">${high_price:,.4f}</h3>
+            <span style="color: #848E9C; font-size: 11px;">BB UPPER</span>
+            <h3 style="margin: 4px 0 0 0; font-size: 16px; font-weight: 700;">${bb_upper:,.4f}</h3>
         </div>
         <div>
-            <span style="color: #848E9C; font-size: 11px;">24H LOW</span>
-            <h3 style="margin: 4px 0 0 0; font-size: 16px; font-weight: 700;">${low_price:,.4f}</h3>
+            <span style="color: #848E9C; font-size: 11px;">BB LOWER</span>
+            <h3 style="margin: 4px 0 0 0; font-size: 16px; font-weight: 700;">${bb_lower:,.4f}</h3>
         </div>
     </div>
     <hr style="border: 0.5px solid #2B313A; margin: 18px 0;">
