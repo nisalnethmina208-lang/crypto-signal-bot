@@ -19,42 +19,63 @@ if "sl_pct" not in st.session_state:
 if "timeframe" not in st.session_state:
     st.session_state["timeframe"] = "15"
 
-# Multi-API Live Data Fetcher
+# Multi-API Live Data Fetcher & SignalMaster-P Analytics Engine
 def fetch_live_market_data(symbol):
     headers = {"User-Agent": "Mozilla/5.0"}
     
-    # 1. Binance Global API
+    # 1. Binance Global API (Klines/Candle Data for SignalMaster-P calculation)
     try:
         url = f"https://api.binance.com/api/v3/ticker/24hr?symbol={symbol}"
         res = requests.get(url, headers=headers, timeout=3)
+        
+        # Fetching historical klines for enhanced indicator calculation
+        klines_url = f"https://api.binance.com/api/v3/klines?symbol={symbol}&interval=15m&limit=50"
+        k_res = requests.get(klines_url, headers=headers, timeout=3)
+        
         if res.status_code == 200:
             data = res.json()
-            return float(data["lastPrice"]), float(data["priceChangePercent"]), float(data["highPrice"]), float(data["lowPrice"])
+            last_price = float(data["lastPrice"])
+            price_change = float(data["priceChangePercent"])
+            high_price = float(data["highPrice"])
+            low_price = float(data["lowPrice"])
+            
+            # SignalMaster-P Algorithm Enhancement (Dynamic Momentum & Trend Validation)
+            if k_res.status_code == 200:
+                klines = k_res.json()
+                closes = [float(k[4]) for k in klines]
+                # Simple Moving Average / EMA approximation for SignalMaster-P filter
+                ema_fast = sum(closes[-10:]) / 10
+                ema_slow = sum(closes[-30:]) / 30
+                signalmaster_score = (ema_fast - ema_slow) / ema_slow * 100
+            else:
+                signalmaster_score = price_change / 2.0
+
+            return last_price, price_change, high_price, low_price, signalmaster_score
     except Exception:
         pass
 
-    # 2. Binance US API
+    # 2. Binance US API Fallback
     try:
         url = f"https://api.binance.us/api/v3/ticker/24hr?symbol={symbol}"
         res = requests.get(url, headers=headers, timeout=3)
         if res.status_code == 200:
             data = res.json()
-            return float(data["lastPrice"]), float(data["priceChangePercent"]), float(data["highPrice"]), float(data["lowPrice"])
+            return float(data["lastPrice"]), float(data["priceChangePercent"]), float(data["highPrice"]), float(data["lowPrice"]), float(data["priceChangePercent"]) / 2.0
     except Exception:
         pass
 
-    # 3. CryptoCompare API
+    # 3. CryptoCompare API Fallback
     try:
         coin = symbol.replace("USDT", "")
         url = f"https://min-api.cryptocompare.com/data/pricemultifull?fsyms={coin}&tsyms=USDT"
         res = requests.get(url, headers=headers, timeout=3)
         if res.status_code == 200:
             d = res.json()["RAW"][coin]["USDT"]
-            return float(d["PRICE"]), float(d["CHANGEPCT24HOUR"]), float(d["HIGH24HOUR"]), float(d["LOW24HOUR"])
+            return float(d["PRICE"]), float(d["CHANGEPCT24HOUR"]), float(d["HIGH24HOUR"]), float(d["LOW24HOUR"]), float(d["CHANGEPCT24HOUR"]) / 2.0
     except Exception:
         pass
 
-    return 0.0, 0.0, 0.0, 0.0
+    return 0.0, 0.0, 0.0, 0.0, 0.0
 
 
 # ---------------------------------------------------------
@@ -64,11 +85,11 @@ st.markdown("""
 <div style="background: linear-gradient(135deg, #1E2329 0%, #0B0E11 100%); padding: 20px; border-radius: 16px; border: 1px solid #F0B90B; margin-bottom: 20px; text-align: center; box-shadow: 0px 4px 15px rgba(240, 185, 11, 0.15);">
     <div style="display: flex; align-items: center; justify-content: center; gap: 10px;">
         <span style="font-size: 32px;">⚡</span>
-        <h1 style="color: #F0B90B; margin: 0; font-size: 26px; font-weight: 800; letter-spacing: 1px; text-transform: uppercase;">BINANCE PRO SIGNAL CENTER</h1>
+        <h1 style="color: #F0B90B; margin: 0; font-size: 26px; font-weight: 800; letter-spacing: 1px; text-transform: uppercase;">BINANCE PRO SIGNALMASTER-P CENTER</h1>
     </div>
-    <p style="color: #848E9C; margin: 6px 0 0 0; font-size: 13px; font-weight: 500;">Real-Time Crypto Signals & Technical Analysis Dashboard</p>
+    <p style="color: #848E9C; margin: 6px 0 0 0; font-size: 13px; font-weight: 500;">Real-Time SignalMaster-P Crypto Signals & Advanced Technical Dashboard</p>
     <div style="margin-top: 10px;">
-        <span style="background-color: rgba(14, 203, 129, 0.2); color: #0ECB81; padding: 4px 12px; border-radius: 20px; font-size: 11px; font-weight: bold; border: 1px solid #0ECB81;">● LIVE API CONNECTED</span>
+        <span style="background-color: rgba(14, 203, 129, 0.2); color: #0ECB81; padding: 4px 12px; border-radius: 20px; font-size: 11px; font-weight: bold; border: 1px solid #0ECB81;">● SIGNALMASTER-P ACTIVE</span>
     </div>
 </div>
 """, unsafe_allow_html=True)
@@ -85,38 +106,36 @@ with tab1:
         "MATIC/USDT", "UNI/USDT", "ICP/USDT", "RUNE/USDT", "RENDER/USDT",
         "FET/USDT", "INJ/USDT", "AR/USDT", "TIA/USDT", "SEI/USDT",
         "PENDLE/USDT", "OP/USDT", "ARB/USDT", "STRK/USDT", "MANTA/USDT",
-        "ALT/USDT", "JUP/USDT", "PYTH/USDT", "WLD/USDT", "TIA/USDT",
-        "ATOM/USDT", "NEAR/USDT", "FTM/USDT", "ALGO/USDT", "VET/USDT",
-        "FIL/USDT", "GRT/USDT", "SAND/USDT", "MANA/USDT", "AXS/USDT",
-        "THETA/USDT", "EGLD/USDT", "FLOW/USDT", "CHZ/USDT", "CRV/USDT",
-        "LDO/USDT", "SNX/USDT", "MKR/USDT", "AAVE/USDT", "COMP/USDT",
-        "FXS/USDT", "GMX/USDT", "DYDX/USDT", "GNS/USDT", "JOE/USDT",
-        "CAKE/USDT", "SUSHI/USDT", "1INCH/USDT", "ZRX/USDT", "BAL/USDT",
-        "RSR/USDT", "OCEAN/USDT", "AGIX/USDT", "RLC/USDT", "NMR/USDT",
-        "TRB/USDT", "API3/USDT", "TRU/USDT", "ID/USDT", "GAL/USDT",
-        "HOOK/USDT", "HIGH/USDT", "PERP/USDT", "LINA/USDT", "STG/USDT",
-        "RDNT/USDT", "STMX/USDT", "KEY/USDT", "DOCK/USDT", "PHB/USDT",
-        "OXT/USDT", "SKL/USDT", "CTSI/USDT", "COTI/USDT", "CHR/USDT",
-        "TLM/USDT", "BAKE/USDT", "BURGER/USDT", "DODO/USDT", "UNFI/USDT",
-        "BEL/USDT", "WING/USDT", "LIT/USDT", "SFP/USDT", "HARD/USDT",
-        "REEF/USDT", "OM/USDT", "BAKE/USDT", "ALPHA/USDT", "BETA/USDT",
-        "CREAM/USDT", "QUICK/USDT", "SUPER/USDT", "MDT/USDT", "PNT/USDT",
-        "PROM/USDT", "ORN/USDT", "MBOX/USDT", "GHST/USDT", "PERL/USDT",
-        "LRC/USDT", "ENJ/USDT", "STORJ/USDT", "ANKR/USDT", "KNC/USDT",
-        "BAT/USDT", "ZEN/USDT", "IOST/USDT", "ONT/USDT", "ZIL/USDT",
-        "ICX/USDT", "ONT/USDT", "QTUM/USDT", "NKN/USDT", "WAVES/USDT",
-        "OMG/USDT", "DGB/USDT", "RVN/USDT", "SC/USDT", "STMX/USDT",
-        "HBAR/USDT", "ONE/USDT", "HOT/USDT", "ZIL/USDT", "IOST/USDT",
-        "KAVA/USDT", "KSM/USDT", "ARPA/USDT", "CTK/USDT", "SUN/USDT",
-        "JST/USDT", "WIN/USDT", "BTT/USDT", "POLS/USDT", "MASK/USDT",
-        "C98/USDT", "QNT/USDT", "MINA/USDT", "RAY/USDT", "FIDA/USDT",
-        "MAPS/USDT", "BICO/USDT", "GLMR/USDT", "MOVR/USDT", "ACA/USDT",
-        "ASTR/USDT", "ENS/USDT", "IMX/USDT", "PEOPLE/USDT", "GALA/USDT",
-        "POWR/USDT", "VGX/USDT", "BIFI/USDT", "TKO/USDT", "ATA/USDT",
-        "C98/USDT", "LPT/USDT", "AUDIO/USDT", "FOR/USDT", "AKRO/USDT",
-        "DIABO/USDT", "DEXE/USDT", "AUCTION/USDT", "FORTH/USDT", "POLYX/USDT",
-        "BOME/USDT", "WIF/USDT", "BONK/USDT", "FLOKI/USDT", "MEME/USDT",
-        "ORDI/USDT", "SATS/USDT", "RATS/USDT", "BNX/USDT", "POL/USDT"
+        "ALT/USDT", "JUP/USDT", "PYTH/USDT", "WLD/USDT", "ATOM/USDT",
+        "FTM/USDT", "ALGO/USDT", "VET/USDT", "FIL/USDT", "GRT/USDT",
+        "SAND/USDT", "MANA/USDT", "AXS/USDT", "THETA/USDT", "EGLD/USDT",
+        "FLOW/USDT", "CHZ/USDT", "CRV/USDT", "LDO/USDT", "SNX/USDT",
+        "MKR/USDT", "AAVE/USDT", "COMP/USDT", "FXS/USDT", "GMX/USDT",
+        "DYDX/USDT", "GNS/USDT", "JOE/USDT", "CAKE/USDT", "SUSHI/USDT",
+        "1INCH/USDT", "ZRX/USDT", "BAL/USDT", "RSR/USDT", "OCEAN/USDT",
+        "AGIX/USDT", "RLC/USDT", "NMR/USDT", "TRB/USDT", "API3/USDT",
+        "TRU/USDT", "ID/USDT", "GAL/USDT", "HOOK/USDT", "HIGH/USDT",
+        "PERP/USDT", "LINA/USDT", "STG/USDT", "RDNT/USDT", "STMX/USDT",
+        "KEY/USDT", "DOCK/USDT", "PHB/USDT", "OXT/USDT", "SKL/USDT",
+        "CTSI/USDT", "COTI/USDT", "CHR/USDT", "TLM/USDT", "BAKE/USDT",
+        "BURGER/USDT", "DODO/USDT", "UNFI/USDT", "BEL/USDT", "WING/USDT",
+        "LIT/USDT", "SFP/USDT", "HARD/USDT", "REEF/USDT", "OM/USDT",
+        "ALPHA/USDT", "BETA/USDT", "CREAM/USDT", "QUICK/USDT", "SUPER/USDT",
+        "MDT/USDT", "PNT/USDT", "PROM/USDT", "ORN/USDT", "MBOX/USDT",
+        "GHST/USDT", "PERL/USDT", "LRC/USDT", "ENJ/USDT", "STORJ/USDT",
+        "ANKR/USDT", "KNC/USDT", "BAT/USDT", "ZEN/USDT", "IOST/USDT",
+        "ONT/USDT", "ZIL/USDT", "ICX/USDT", "QTUM/USDT", "NKN/USDT",
+        "WAVES/USDT", "OMG/USDT", "DGB/USDT", "RVN/USDT", "SC/USDT",
+        "HBAR/USDT", "ONE/USDT", "HOT/USDT", "KAVA/USDT", "KSM/USDT",
+        "ARPA/USDT", "CTK/USDT", "SUN/USDT", "JST/USDT", "WIN/USDT",
+        "BTT/USDT", "POLS/USDT", "MASK/USDT", "C98/USDT", "QNT/USDT",
+        "MINA/USDT", "RAY/USDT", "FIDA/USDT", "MAPS/USDT", "BICO/USDT",
+        "GLMR/USDT", "MOVR/USDT", "ACA/USDT", "ASTR/USDT", "ENS/USDT",
+        "IMX/USDT", "PEOPLE/USDT", "GALA/USDT", "POWR/USDT", "VGX/USDT",
+        "BIFI/USDT", "TKO/USDT", "ATA/USDT", "LPT/USDT", "AUDIO/USDT",
+        "FOR/USDT", "AKRO/USDT", "DEXE/USDT", "AUCTION/USDT", "FORTH/USDT",
+        "POLYX/USDT", "BOME/USDT", "WIF/USDT", "BONK/USDT", "FLOKI/USDT",
+        "MEME/USDT", "ORDI/USDT", "SATS/USDT", "RATS/USDT", "BNX/USDT", "POL/USDT"
     ]
     
     col1, col2 = st.columns([2, 1])
@@ -131,25 +150,25 @@ with tab1:
 
     tv_symbol = selected_pair.replace("/", "")
 
-    # Fetch Real-time Market Data
-    current_price, price_change_pct, high_price, low_price = fetch_live_market_data(tv_symbol)
+    # Fetch Real-time Market Data with SignalMaster-P Logic
+    current_price, price_change_pct, high_price, low_price, signalmaster_score = fetch_live_market_data(tv_symbol)
 
-    # Technical Signal Rules
-    if price_change_pct >= 2.0:
-        signal_badge, signal_bg = "STRONG BUY 🚀", "#0ECB81"
-        trend_text, trend_color = "Bullish Momentum (Strong UP)", "#0ECB81"
+    # SignalMaster-P Enhanced Technical Signal Engine Rules
+    if price_change_pct >= 1.5 or signalmaster_score > 0.8:
+        signal_badge, signal_bg = "SIGNALMASTER-P STRONG BUY 🚀", "#0ECB81"
+        trend_text, trend_color = "SignalMaster-P Bullish Momentum", "#0ECB81"
         is_buy = True
-    elif price_change_pct > 0:
-        signal_badge, signal_bg = "BUY 📈", "#26A69A"
-        trend_text, trend_color = "Uptrend Structure (UP)", "#26A69A"
+    elif price_change_pct > 0 or signalmaster_score > 0:
+        signal_badge, signal_bg = "SIGNALMASTER-P BUY 📈", "#26A69A"
+        trend_text, trend_color = "SignalMaster-P Uptrend Structure", "#26A69A"
         is_buy = True
-    elif price_change_pct <= -2.0:
-        signal_badge, signal_bg = "STRONG SELL 🔻", "#F6465D"
-        trend_text, trend_color = "Bearish Pressure (Strong DOWN)", "#F6465D"
+    elif price_change_pct <= -1.5 or signalmaster_score < -0.8:
+        signal_badge, signal_bg = "SIGNALMASTER-P STRONG SELL 🔻", "#F6465D"
+        trend_text, trend_color = "SignalMaster-P Bearish Pressure", "#F6465D"
         is_buy = False
     else:
-        signal_badge, signal_bg = "SELL 📉", "#E55656"
-        trend_text, trend_color = "Downtrend Structure (DOWN)", "#E55656"
+        signal_badge, signal_bg = "SIGNALMASTER-P SELL 📉", "#E55656"
+        trend_text, trend_color = "SignalMaster-P Downtrend Structure", "#E55656"
         is_buy = False
 
     # Targets Calculation
@@ -160,32 +179,29 @@ with tab1:
     if current_price > 0:
         if is_buy:
             tp1, tp2, sl = current_price * (1 + tp1_ratio), current_price * (1 + tp2_ratio), current_price * (1 - sl_ratio)
-            tp_l1, tp_l2, sl_l = f"TP 1 (+{st.session_state['tp1_pct']}%)", f"TP 2 (+{st.session_state['tp2_pct']}%)", f"SL (-{st.session_state['sl_pct']}%)"
         else:
             tp1, tp2, sl = current_price * (1 - tp1_ratio), current_price * (1 - tp2_ratio), current_price * (1 + sl_ratio)
-            tp_l1, tp_l2, sl_l = f"TP 1 (-{st.session_state['tp1_pct']}%)", f"TP 2 (-{st.session_state['tp2_pct']}%)", f"SL (+{st.session_state['sl_pct']}%)"
     else:
         tp1 = tp2 = sl = 0.0
-        tp_l1 = tp_l2 = sl_l = "-"
 
     # Ultra-Compact Minimalist Signal Card
     signal_card_html = f"""
 <div style="background: #181A20; padding: 14px; border-radius: 12px; border: 1px solid #2B313A; color: white;">
 <div style="display: flex; justify-content: space-between; align-items: center;">
 <div>
-<span style="color: #848E9C; font-size: 10px; font-weight: 600;">BINANCE SPOT</span>
+<span style="color: #848E9C; font-size: 10px; font-weight: 600;">SIGNALMASTER-P SPOT ENGINE</span>
 <h2 style="margin: 1px 0 0 0; color: #F0B90B; font-size: 22px; font-weight: 800;">{selected_pair}</h2>
 <p style="margin: 1px 0 0 0; color: {trend_color}; font-weight: 600; font-size: 11px;">● {trend_text}</p>
 </div>
 <div>
-<div style="background: {signal_bg}; color: white; padding: 8px 14px; border-radius: 6px; font-weight: 800; font-size: 14px; text-align: center;">
+<div style="background: {signal_bg}; color: white; padding: 8px 14px; border-radius: 6px; font-weight: 800; font-size: 13px; text-align: center;">
 {signal_badge}
 </div>
 </div>
 </div>
 
 <div style="text-align: center; margin: 8px 0;">
-<span style="color: #848E9C; font-size: 10px; font-weight: 600;">Price: ${current_price:,.4f} | Change: {price_change_pct:+.2f}% | Zone: Premium Zone</span>
+<span style="color: #848E9C; font-size: 10px; font-weight: 600;">Price: ${current_price:,.4f} | Change: {price_change_pct:+.2f}% | P-Score: {signalmaster_score:+.2f}</span>
 </div>
 
 <!-- Ultra-Compact Minimalist Rows -->
