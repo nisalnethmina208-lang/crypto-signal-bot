@@ -37,7 +37,6 @@ def calculate_rsi(closes, period=14):
     rs = up / down
     rsi = 100 - (100 / (1 + rs))
     
-    # Smoothed calculation for remaining
     for i in range(period, len(deltas)):
         delta = deltas[i]
         if delta > 0:
@@ -72,19 +71,18 @@ def calculate_macd(closes):
     macd_line = ema12 - ema26
     return macd_line, ema12
 
-# Multi-API Live Data Fetcher & Advanced Indicator Engine
+# Multi-API Live Data Fetcher
 def fetch_live_market_data(symbol, timeframe_val):
     headers = {"User-Agent": "Mozilla/5.0"}
     tf_map = {"1": "1m", "5": "5m", "15": "15m", "60": "1h", "240": "4h", "D": "1d"}
     binance_tf = tf_map.get(timeframe_val, "15m")
     
-    # 1. Binance Global API
     try:
-        url = f"https://api.binance.com/api/v3/ticker/24hr?symbol={symbol}"
-        res = requests.get(url, headers=headers, timeout=3)
+        url = f"https://data-api.binance.vision/api/v3/ticker/24hr?symbol={symbol}"
+        res = requests.get(url, headers=headers, timeout=4)
         
-        klines_url = f"https://api.binance.com/api/v3/klines?symbol={symbol}&interval={binance_tf}&limit=100"
-        k_res = requests.get(klines_url, headers=headers, timeout=3)
+        klines_url = f"https://data-api.binance.vision/api/v3/klines?symbol={symbol}&interval={binance_tf}&limit=100"
+        k_res = requests.get(klines_url, headers=headers, timeout=4)
         
         if res.status_code == 200:
             data = res.json()
@@ -97,13 +95,11 @@ def fetch_live_market_data(symbol, timeframe_val):
                 klines = k_res.json()
                 closes = np.array([float(k[4]) for k in klines])
                 
-                # Indicator computations
                 rsi = calculate_rsi(closes, 14)
                 ema7 = calculate_ema(closes, 7)
                 ema25 = calculate_ema(closes, 25)
                 macd_val, _ = calculate_macd(closes)
                 
-                # Composite Score Generation based on Indicators
                 score = 0.0
                 if ema7 > ema25:
                     score += 1.0
@@ -111,9 +107,9 @@ def fetch_live_market_data(symbol, timeframe_val):
                     score -= 1.0
                 
                 if rsi < 30:
-                    score += 1.5  # Oversold (Bullish reversal setup)
+                    score += 1.5
                 elif rsi > 70:
-                    score -= 1.5  # Overbought (Bearish reversal setup)
+                    score -= 1.5
                 
                 if macd_val > 0:
                     score += 1.0
@@ -129,23 +125,10 @@ def fetch_live_market_data(symbol, timeframe_val):
     except Exception:
         pass
 
-    # 2. Binance US API Fallback
-    try:
-        url = f"https://api.binance.us/api/v3/ticker/24hr?symbol={symbol}"
-        res = requests.get(url, headers=headers, timeout=3)
-        if res.status_code == 200:
-            data = res.json()
-            p = float(data["lastPrice"])
-            chg = float(data["priceChangePercent"])
-            return p, chg, float(data["highPrice"]), float(data["lowPrice"]), chg / 2.0, 50.0, p, p, 0.0
-    except Exception:
-        pass
-
-    # 3. CryptoCompare API Fallback
     try:
         coin = symbol.replace("USDT", "")
         url = f"https://min-api.cryptocompare.com/data/pricemultifull?fsyms={coin}&tsyms=USDT"
-        res = requests.get(url, headers=headers, timeout=3)
+        res = requests.get(url, headers=headers, timeout=4)
         if res.status_code == 200:
             d = res.json()["RAW"][coin]["USDT"]
             p = float(d["PRICE"])
@@ -165,7 +148,7 @@ st.markdown("""
     </div>
     <p style="color: #848E9C; margin: 6px 0 0 0; font-size: 13px; font-weight: 500;">Real-Time SignalMaster-P Crypto Signals & Advanced Technical Dashboard</p>
     <div style="margin-top: 10px;">
-        <span style="background-color: rgba(14, 203, 129, 0.2); color: #0ECB81; padding: 4px 12px; border-radius: 20px; font-size: 11px; font-weight: bold; border: 1px solid #0ECB81;">● INDICATOR-POWERED ENGINE ACTIVE</span>
+        <span style="background-color: rgba(14, 203, 129, 0.2); color: #0ECB81; padding: 4px 12px; border-radius: 20px; font-size: 11px; font-weight: bold; border: 1px solid #0ECB81;">● STABLE VISION ENGINE ACTIVE</span>
     </div>
 </div>
 """, unsafe_allow_html=True)
@@ -228,7 +211,6 @@ with tab1:
 
     current_price, price_change_pct, high_price, low_price, signalmaster_score, rsi, ema7, ema25, macd_val = fetch_live_market_data(tv_symbol, current_tf)
 
-    # Decision based on computed indicator scores
     if signalmaster_score >= 2.0:
         signal_badge, signal_bg = "SIGNALMASTER-P STRONG BUY 🚀", "#0ECB81"
         trend_text, trend_color = "Bullish Crossover & Momentum", "#0ECB81"
@@ -303,28 +285,7 @@ with tab1:
     st.markdown(signal_card_html, unsafe_allow_html=True)
     st.markdown("<br>", unsafe_allow_html=True)
 
-    # TradingView Pro Technical Analysis Meter Widget
-    st.markdown("### 📊 Live Technical Analysis Meter")
-    ta_widget_code = f"""
-<div class="tradingview-widget-container">
-  <div class="tradingview-widget-container__widget"></div>
-  <script type="text/javascript" src="https://s3.tradingview.com/external-embedding/embed-widget-technical-analysis.js" async>
-  {{
-  "interval": "{current_tf}",
-  "width": "100%",
-  "isTransparent": false,
-  "height": 430,
-  "symbol": "BINANCE:{tv_symbol}",
-  "showIntervalTabs": true,
-  "locale": "en",
-  "colorTheme": "dark"
-}}
-  </script>
-</div>
-"""
-    components.html(ta_widget_code, height=440)
-
-    # TradingView Chart Widget
+    # TradingView Chart Widget (Technical Analysis meter completely removed)
     st.markdown("### 📈 Live Interactive Chart")
     chart_code = f"""
 <div class="tradingview-widget-container" style="height:100%;width:100%">
