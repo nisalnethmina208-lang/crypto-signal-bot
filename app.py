@@ -1,6 +1,7 @@
 import streamlit as st
 import streamlit.components.v1 as components
 import requests
+import numpy as np
 from streamlit_autorefresh import st_autorefresh
 
 # Page Configuration
@@ -23,16 +24,66 @@ if "sl_pct" not in st.session_state:
 if "timeframe" not in st.session_state:
     st.session_state["timeframe"] = "15"
 
-# Multi-API Live Data Fetcher & SignalMaster-P Analytics Engine
-def fetch_live_market_data(symbol):
+# Technical Indicators Calculation Functions
+def calculate_rsi(closes, period=14):
+    if len(closes) < period + 1:
+        return 50.0
+    deltas = np.diff(closes)
+    seed = deltas[:period]
+    up = seed[seed >= 0].sum() / period
+    down = -seed[seed < 0].sum() / period
+    if down == 0:
+        return 100.0
+    rs = up / down
+    rsi = 100.agent = 100 - (100 / (1 + rs))
+    
+    # Smoothed calculation for remaining
+    for i in range(period, len(deltas)):
+        delta = deltas[i]
+        if delta > 0:
+            up_val = delta
+            down_val = 0.0
+        else:
+            up_val = 0.0
+            down_val = -delta
+        up = (up * (period - 1) + up_val) / period
+        down = (down * (period - 1) + down_val) / period
+        if down == 0:
+            rs = 0
+            rsi = 100.0
+        else:
+            rs = up / down
+            rsi = 100 - (100 / (1 + rs))
+    return float(rsi)
+
+def calculate_ema(closes, period):
+    if len(closes) < period:
+        return closes[-1] if closes else 0.0
+    weights = np.exp(np.linspace(-1., 0., period))
+    weights /= weights.sum()
+    a = np.convolve(closes, weights, mode='valid')
+    return float(a[-1])
+
+def calculate_macd(closes):
+    if len(closes) < 26:
+        return 0.0, 0.0
+    ema12 = calculate_ema(closes, 12)
+    ema26 = calculate_ema(closes, 26)
+    macd_line = ema12 - ema26
+    return macd_line, ema12
+
+# Multi-API Live Data Fetcher & Advanced Indicator Engine
+def fetch_live_market_data(symbol, timeframe_val):
     headers = {"User-Agent": "Mozilla/5.0"}
+    tf_map = {"1": "1m", "5": "5m", "15": "15m", "60": "1h", "240": "4h", "D": "1d"}
+    binance_tf = tf_map.get(timeframe_val, "15m")
     
     # 1. Binance Global API
     try:
         url = f"https://api.binance.com/api/v3/ticker/24hr?symbol={symbol}"
         res = requests.get(url, headers=headers, timeout=3)
         
-        klines_url = f"https://api.binance.com/api/v3/klines?symbol={symbol}&interval=15m&limit=50"
+        klines_url = f"https://api.binance.com/api/v3/klines?symbol={symbol}&interval={binance_tf}&limit=100"
         k_res = requests.get(klines_url, headers=headers, timeout=3)
         
         if res.status_code == 200:
@@ -44,14 +95,37 @@ def fetch_live_market_data(symbol):
             
             if k_res.status_code == 200:
                 klines = k_res.json()
-                closes = [float(k[4]) for k in klines]
-                ema_fast = sum(closes[-10:]) / 10
-                ema_slow = sum(closes[-30:]) / 30
-                signalmaster_score = (ema_fast - ema_slow) / ema_slow * 100
+                closes = np.array([float(k[4]) for k in klines])
+                
+                # Indicator computations
+                rsi = calculate_rsi(closes, 14)
+                ema7 = calculate_ema(closes, 7)
+                ema25 = calculate_ema(closes, 25)
+                macd_val, _ = calculate_macd(closes)
+                
+                # Composite Score Generation based on Indicators
+                score = 0.0
+                if ema7 > ema25:
+                    score += 1.0
+                else:
+                    score -= 1.0
+                
+                if rsi < 30:
+                    score += 1.5  # Oversold (Bullish reversal setup)
+                elif rsi > 70:
+                    score -= 1.5  # Overbought (Bearish reversal setup)
+                
+                if macd_val > 0:
+                    score += 1.0
+                else:
+                    score -= 1.0
+                
+                signalmaster_score = score
             else:
+                rsi, ema7, ema25, macd_val = 50.0, last_price, last_price, 0.0
                 signalmaster_score = price_change / 2.0
 
-            return last_price, price_change, high_price, low_price, signalmaster_score
+            return last_price, price_change, high_price, low_price, signalmaster_score, rsi, ema7, ema25, macd_val
     except Exception:
         pass
 
@@ -61,7 +135,9 @@ def fetch_live_market_data(symbol):
         res = requests.get(url, headers=headers, timeout=3)
         if res.status_code == 200:
             data = res.json()
-            return float(data["lastPrice"]), float(data["priceChangePercent"]), float(data["highPrice"]), float(data["lowPrice"]), float(data["priceChangePercent"]) / 2.0
+            p = float(data["lastPrice"])
+            chg = float(data["priceChangePercent"])
+            return p, chg, float(data["highPrice"]), float(data["lowPrice"]), chg / 2.0, 50.0, p, p, 0.0
     except Exception:
         pass
 
@@ -72,11 +148,13 @@ def fetch_live_market_data(symbol):
         res = requests.get(url, headers=headers, timeout=3)
         if res.status_code == 200:
             d = res.json()["RAW"][coin]["USDT"]
-            return float(d["PRICE"]), float(d["CHANGEPCT24HOUR"]), float(d["HIGH24HOUR"]), float(d["LOW24HOUR"]), float(d["CHANGEPCT24HOUR"]) / 2.0
+            p = float(d["PRICE"])
+            chg = float(d["CHANGEPCT24HOUR"])
+            return p, chg, float(d["HIGH24HOUR"]), float(d["LOW24HOUR"]), chg / 2.0, 50.0, p, p, 0.0
     except Exception:
         pass
 
-    return 0.0, 0.0, 0.0, 0.0, 0.0
+    return 0.0, 0.0, 0.0, 0.0, 0.0, 50.0, 0.0, 0.0, 0.0
 
 # MAIN APP HEADER BANNER
 st.markdown("""
@@ -87,7 +165,7 @@ st.markdown("""
     </div>
     <p style="color: #848E9C; margin: 6px 0 0 0; font-size: 13px; font-weight: 500;">Real-Time SignalMaster-P Crypto Signals & Advanced Technical Dashboard</p>
     <div style="margin-top: 10px;">
-        <span style="background-color: rgba(14, 203, 129, 0.2); color: #0ECB81; padding: 4px 12px; border-radius: 20px; font-size: 11px; font-weight: bold; border: 1px solid #0ECB81;">● SIGNALMASTER-P ACTIVE</span>
+        <span style="background-color: rgba(14, 203, 129, 0.2); color: #0ECB81; padding: 4px 12px; border-radius: 20px; font-size: 11px; font-weight: bold; border: 1px solid #0ECB81;">● INDICATOR-POWERED ENGINE ACTIVE</span>
     </div>
 </div>
 """, unsafe_allow_html=True)
@@ -146,24 +224,26 @@ with tab1:
         selected_pair = f"{custom_symbol}/USDT"
 
     tv_symbol = selected_pair.replace("/", "")
+    current_tf = st.session_state['timeframe']
 
-    current_price, price_change_pct, high_price, low_price, signalmaster_score = fetch_live_market_data(tv_symbol)
+    current_price, price_change_pct, high_price, low_price, signalmaster_score, rsi, ema7, ema25, macd_val = fetch_live_market_data(tv_symbol, current_tf)
 
-    if price_change_pct >= 1.5 or signalmaster_score > 0.8:
+    # Decision based on computed indicator scores
+    if signalmaster_score >= 2.0:
         signal_badge, signal_bg = "SIGNALMASTER-P STRONG BUY 🚀", "#0ECB81"
-        trend_text, trend_color = "SignalMaster-P Bullish Momentum", "#0ECB81"
+        trend_text, trend_color = "Bullish Crossover & Momentum", "#0ECB81"
         is_buy = True
-    elif price_change_pct > 0 or signalmaster_score > 0:
+    elif signalmaster_score > 0:
         signal_badge, signal_bg = "SIGNALMASTER-P BUY 📈", "#26A69A"
-        trend_text, trend_color = "SignalMaster-P Uptrend Structure", "#26A69A"
+        trend_text, trend_color = "Uptrend Structure", "#26A69A"
         is_buy = True
-    elif price_change_pct <= -1.5 or signalmaster_score < -0.8:
+    elif signalmaster_score <= -2.0:
         signal_badge, signal_bg = "SIGNALMASTER-P STRONG SELL 🔻", "#F6465D"
-        trend_text, trend_color = "SignalMaster-P Bearish Pressure", "#F6465D"
+        trend_text, trend_color = "Bearish Breakdown Pressure", "#F6465D"
         is_buy = False
     else:
         signal_badge, signal_bg = "SIGNALMASTER-P SELL 📉", "#E55656"
-        trend_text, trend_color = "SignalMaster-P Downtrend Structure", "#E55656"
+        trend_text, trend_color = "Downtrend Structure", "#E55656"
         is_buy = False
 
     tp1_ratio = st.session_state["tp1_pct"] / 100.0
@@ -182,7 +262,7 @@ with tab1:
 <div style="background: #181A20; padding: 14px; border-radius: 12px; border: 1px solid #2B313A; color: white;">
 <div style="display: flex; justify-content: space-between; align-items: center;">
 <div>
-<span style="color: #848E9C; font-size: 10px; font-weight: 600;">SIGNALMASTER-P SPOT ENGINE</span>
+<span style="color: #848E9C; font-size: 10px; font-weight: 600;">SIGNALMASTER-P INDICATOR ENGINE</span>
 <h2 style="margin: 1px 0 0 0; color: #F0B90B; font-size: 22px; font-weight: 800;">{selected_pair}</h2>
 <p style="margin: 1px 0 0 0; color: {trend_color}; font-weight: 600; font-size: 11px;">● {trend_text}</p>
 </div>
@@ -194,7 +274,12 @@ with tab1:
 </div>
 
 <div style="text-align: center; margin: 8px 0;">
-<span style="color: #848E9C; font-size: 10px; font-weight: 600;">Price: ${current_price:,.4f} | Change: {price_change_pct:+.2f}% | P-Score: {signalmaster_score:+.2f}</span>
+<span style="color: #848E9C; font-size: 10px; font-weight: 600;">Price: ${current_price:,.4f} | Change: {price_change_pct:+.2f}% | RSI: {rsi:.1f} | MACD: {macd_val:.4f}</span>
+</div>
+
+<div style="display: flex; gap: 6px; margin-bottom: 8px;">
+<div style="flex:1; background: #1E2329; padding: 4px; border-radius: 4px; text-align: center;"><span style="color: #848E9C; font-size: 9px;">EMA 7:</span> <span style="color: #fff; font-size: 11px; font-weight: bold;">${ema7:,.4f}</span></div>
+<div style="flex:1; background: #1E2329; padding: 4px; border-radius: 4px; text-align: center;"><span style="color: #848E9C; font-size: 9px;">EMA 25:</span> <span style="color: #fff; font-size: 11px; font-weight: bold;">${ema25:,.4f}</span></div>
 </div>
 
 <div style="background: #1E2329; padding: 4px 8px; border-radius: 4px; text-align: center; margin-bottom: 4px;">
@@ -220,7 +305,6 @@ with tab1:
 
     # TradingView Pro Technical Analysis Meter Widget
     st.markdown("### 📊 Live Technical Analysis Meter")
-    current_tf = st.session_state['timeframe']
     ta_widget_code = f"""
 <div class="tradingview-widget-container">
   <div class="tradingview-widget-container__widget"></div>
