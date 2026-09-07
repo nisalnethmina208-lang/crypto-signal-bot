@@ -35,7 +35,7 @@ def calculate_rsi(closes, period=14):
     if down == 0:
         return 100.0
     rs = up / down
-    rsi = 100.agent = 100 - (100 / (1 + rs))
+    rsi = 100 - (100 / (1 + rs))
     
     # Smoothed calculation for remaining
     for i in range(period, len(deltas)):
