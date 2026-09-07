@@ -1,6 +1,7 @@
 import streamlit as st
 import streamlit.components.v1 as components
 import requests
+from streamlit_autorefresh import st_autorefresh
 
 # Page Configuration
 st.set_page_config(
@@ -8,6 +9,9 @@ st.set_page_config(
     page_icon="⚡", 
     layout="centered"
 )
+
+# Auto-refresh setup: සෑම තත්පර 10 කට වතාවක්ම ඇප් එක ස්වයංක්‍රීයව යාවත්කාලීන වේ
+st_autorefresh(interval=10000, limit=None, key="signal_auto_refresh")
 
 # Initialize Session State
 if "tp1_pct" not in st.session_state:
@@ -214,7 +218,7 @@ with tab1:
     st.markdown(signal_card_html, unsafe_allow_html=True)
     st.markdown("<br>", unsafe_allow_html=True)
 
-    # Fixed TradingView Pro Technical Analysis Meter Widget
+    # TradingView Pro Technical Analysis Meter Widget
     st.markdown("### 📊 Live Technical Analysis Meter")
     current_tf = st.session_state['timeframe']
     ta_widget_code = f"""
@@ -275,7 +279,6 @@ with tab2:
     st.markdown("---")
     tf_options = {"1 Min": "1", "5 Min": "5", "15 Min": "15", "1 Hour": "60", "4 Hour": "240", "1 Day": "D"}
     
-    # Safe lookup for default timeframe label
     current_tf_val = st.session_state["timeframe"]
     current_tf_label = next((k for k, v in tf_options.items() if v == current_tf_val), "15 Min")
     
