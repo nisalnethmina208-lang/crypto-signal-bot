@@ -2,7 +2,7 @@ import streamlit as st
 import streamlit.components.v1 as components
 import requests
 
-# Page Configuration (Browser Tab එකේ නම සහ Icon එක)
+# Page Configuration
 st.set_page_config(
     page_title="Binance Pro Signal Center", 
     page_icon="⚡", 
@@ -23,12 +23,11 @@ if "timeframe" not in st.session_state:
 def fetch_live_market_data(symbol):
     headers = {"User-Agent": "Mozilla/5.0"}
     
-    # 1. Binance Global API (Klines/Candle Data for SignalMaster-P calculation)
+    # 1. Binance Global API
     try:
         url = f"https://api.binance.com/api/v3/ticker/24hr?symbol={symbol}"
         res = requests.get(url, headers=headers, timeout=3)
         
-        # Fetching historical klines for enhanced indicator calculation
         klines_url = f"https://api.binance.com/api/v3/klines?symbol={symbol}&interval=15m&limit=50"
         k_res = requests.get(klines_url, headers=headers, timeout=3)
         
@@ -39,11 +38,9 @@ def fetch_live_market_data(symbol):
             high_price = float(data["highPrice"])
             low_price = float(data["lowPrice"])
             
-            # SignalMaster-P Algorithm Enhancement (Dynamic Momentum & Trend Validation)
             if k_res.status_code == 200:
                 klines = k_res.json()
                 closes = [float(k[4]) for k in klines]
-                # Simple Moving Average / EMA approximation for SignalMaster-P filter
                 ema_fast = sum(closes[-10:]) / 10
                 ema_slow = sum(closes[-30:]) / 30
                 signalmaster_score = (ema_fast - ema_slow) / ema_slow * 100
@@ -77,10 +74,7 @@ def fetch_live_market_data(symbol):
 
     return 0.0, 0.0, 0.0, 0.0, 0.0
 
-
-# ---------------------------------------------------------
 # MAIN APP HEADER BANNER
-# ---------------------------------------------------------
 st.markdown("""
 <div style="background: linear-gradient(135deg, #1E2329 0%, #0B0E11 100%); padding: 20px; border-radius: 16px; border: 1px solid #F0B90B; margin-bottom: 20px; text-align: center; box-shadow: 0px 4px 15px rgba(240, 185, 11, 0.15);">
     <div style="display: flex; align-items: center; justify-content: center; gap: 10px;">
@@ -93,7 +87,6 @@ st.markdown("""
     </div>
 </div>
 """, unsafe_allow_html=True)
-
 
 # Interface Tabs
 tab1, tab2 = st.tabs(["📊 Live Trading Center", "⚙️ Signal Settings"])
@@ -150,10 +143,8 @@ with tab1:
 
     tv_symbol = selected_pair.replace("/", "")
 
-    # Fetch Real-time Market Data with SignalMaster-P Logic
     current_price, price_change_pct, high_price, low_price, signalmaster_score = fetch_live_market_data(tv_symbol)
 
-    # SignalMaster-P Enhanced Technical Signal Engine Rules
     if price_change_pct >= 1.5 or signalmaster_score > 0.8:
         signal_badge, signal_bg = "SIGNALMASTER-P STRONG BUY 🚀", "#0ECB81"
         trend_text, trend_color = "SignalMaster-P Bullish Momentum", "#0ECB81"
@@ -171,7 +162,6 @@ with tab1:
         trend_text, trend_color = "SignalMaster-P Downtrend Structure", "#E55656"
         is_buy = False
 
-    # Targets Calculation
     tp1_ratio = st.session_state["tp1_pct"] / 100.0
     tp2_ratio = st.session_state["tp2_pct"] / 100.0
     sl_ratio = st.session_state["sl_pct"] / 100.0
@@ -184,7 +174,6 @@ with tab1:
     else:
         tp1 = tp2 = sl = 0.0
 
-    # Ultra-Compact Minimalist Signal Card
     signal_card_html = f"""
 <div style="background: #181A20; padding: 14px; border-radius: 12px; border: 1px solid #2B313A; color: white;">
 <div style="display: flex; justify-content: space-between; align-items: center;">
@@ -204,7 +193,6 @@ with tab1:
 <span style="color: #848E9C; font-size: 10px; font-weight: 600;">Price: ${current_price:,.4f} | Change: {price_change_pct:+.2f}% | P-Score: {signalmaster_score:+.2f}</span>
 </div>
 
-<!-- Ultra-Compact Minimalist Rows -->
 <div style="background: #1E2329; padding: 4px 8px; border-radius: 4px; text-align: center; margin-bottom: 4px;">
 <span style="color: #848E9C; font-size: 9px; font-weight: 600;">Entry:</span> <span style="color: #FFFFFF; font-size: 12px; font-weight: 700;">${current_price:,.4f}</span>
 </div>
@@ -226,14 +214,15 @@ with tab1:
     st.markdown(signal_card_html, unsafe_allow_html=True)
     st.markdown("<br>", unsafe_allow_html=True)
 
-    # TradingView Pro Technical Analysis Meter Widget
+    # Fixed TradingView Pro Technical Analysis Meter Widget
     st.markdown("### 📊 Live Technical Analysis Meter")
+    current_tf = st.session_state['timeframe']
     ta_widget_code = f"""
 <div class="tradingview-widget-container">
   <div class="tradingview-widget-container__widget"></div>
   <script type="text/javascript" src="https://s3.tradingview.com/external-embedding/embed-widget-technical-analysis.js" async>
   {{
-  "interval": "{st.session_state['timeframe']}" if "{st.session_state['timeframe']}".isdigit() else "1D",
+  "interval": "{current_tf}",
   "width": "100%",
   "isTransparent": false,
   "height": 430,
@@ -249,7 +238,6 @@ with tab1:
 
     # TradingView Chart Widget
     st.markdown("### 📈 Live Interactive Chart")
-    selected_tf = st.session_state["timeframe"]
     chart_code = f"""
 <div class="tradingview-widget-container" style="height:100%;width:100%">
 <div id="tradingview_chart" style="height:480px;width:100%"></div>
@@ -258,7 +246,7 @@ with tab1:
 new TradingView.widget({{
 "autosize": true,
 "symbol": "BINANCE:{tv_symbol}",
-"interval": "{selected_tf}",
+"interval": "{current_tf}",
 "timezone": "Etc/UTC",
 "theme": "dark",
 "style": "1",
@@ -286,6 +274,10 @@ with tab2:
 
     st.markdown("---")
     tf_options = {"1 Min": "1", "5 Min": "5", "15 Min": "15", "1 Hour": "60", "4 Hour": "240", "1 Day": "D"}
-    current_tf_label = [k for k, v in tf_options.items() if v == st.session_state["timeframe"]][0]
+    
+    # Safe lookup for default timeframe label
+    current_tf_val = st.session_state["timeframe"]
+    current_tf_label = next((k for k, v in tf_options.items() if v == current_tf_val), "15 Min")
+    
     selected_tf_label = st.selectbox("Default Timeframe:", list(tf_options.keys()), index=list(tf_options.keys()).index(current_tf_label))
     st.session_state["timeframe"] = tf_options[selected_tf_label]
